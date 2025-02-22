@@ -1,7 +1,7 @@
-# HuntMate 🔍🤖🚀
+# HuntMate
 
 <div align="center">
-    <img src="images/logo.png" alt="Logo" width="400" height="400"><br>
+    <img src="images/logo.png" alt="Logo" width="300" height="300"><br>
     <br><br>
 </div>
 
