@@ -2,18 +2,40 @@
 from pydantic import BaseModel, Field
 from linkedin_api import Linkedin
 from typing import List, Literal
+from enum import Enum
 import pandas as pd
 import configparser
 import os
+
+
+MAX_SEARCH_ITEMS = 5  # Limit for job keywords and locations
+
+
+# Enum for remote job types
+class RemoteType(Enum):
+    ON_SITE = "1"
+    REMOTE = "2"
+    HYBRID = "3"
+
+
+# Enum for experience levels
+class ExperienceLevel(Enum):
+    INTERNSHIP = "1"
+    ENTRY_LEVEL = "2"
+    ASSOCIATE = "3"
+    MID_SENIOR_LEVEL = "4"
+    DIRECTOR = "5"
+    EXECUTIVE = "6"
+
 
 # Shema for filling the job search parameters
 class JobSearchParams(BaseModel):
     job_keywords: List[str] = Field(description="Keywords for the job search")
     location_name: List[str] = Field(description="Location names for the job search")
-    remote: List[Literal["On-site", "Remote", "Hybrid"]] = Field(description="Remote job options")
-    experience: List[Literal["internship", "entry-level", "associate", "mid-senior-level", "director", "executive"]] = Field(description="Experience levels")
-    job_type: List[Literal["full-time", "contract", "part-time", "temporary", "internship", "volunteer", "other"]] = Field(description="Types of jobs")
-    limit: int = Field(description="Limit on the number of jobs to return")
+    remote: List[RemoteType] = Field(description="Remote job options")
+    experience: List[ExperienceLevel] = Field(description="Experience levels")
+    job_type: List[Literal["Full-time", "Contract", "Part-time", "Temporary", "Internship", "Volunteer", "Other"]] = Field(description="Types of jobs")
+    limit: int = Field(default= 10, description="Limit on the number of jobs to return")
 
 
 # Tool for searching jobs on LinkedIn using the LinkedIn API
@@ -22,16 +44,15 @@ class LinkedinSearchTool:
         config = configparser.ConfigParser()
         config.read('./api.cfg')
         self.api = Linkedin(config['linkedin']['username'], config['linkedin']['password'])
-        self.map_remote={"on-site": "1", "remote": "2", "hybrid": "3"}
-        self.map_experience={"internship": "1", "entry-level": "2", "associate": "3", "mid-senior-level" : "4", "director": "5", "6": "executive"}
 
     def get_company_name(self, details: dict) -> str:
         """ Get company name from company id """
-        for keys in details["companyDetails"].keys():
-            for k in details["companyDetails"][keys].keys():
-                for m in details["companyDetails"][keys][k].keys():
-                    if m == "name":
-                        return details["companyDetails"][keys][k][m]
+        company_details = details.get("companyDetails", {})
+        for key, value in company_details.items():
+            for sub_key, sub_value in value.items():
+                company_name = sub_value.get("name")
+                if company_name:
+                    return company_name
         return "Unknown"
     
     def job_search(self, search_params: JobSearchParams) -> List[dict]:
@@ -43,15 +64,18 @@ class LinkedinSearchTool:
             seen_jobs = set()
         else:   
             seen_jobs = set(pd.read_csv("./db/seen_jobs.csv")["job_id"])
-        for job in search_params.job_keywords[:5]: 
-            for location in search_params.location_name[:5]:
+
+        print("Searching for jobs on LinkedIn")
+
+        for job in search_params.job_keywords[:MAX_SEARCH_ITEMS]: 
+            for location in search_params.location_name[:MAX_SEARCH_ITEMS]:
                 input_search = {
                     "keywords": job,
                     "location": location,
                     "limit": search_params.limit,
-                    "remote": [self.map_remote[remote.lower()] for remote in search_params.remote],
-                    "experience": [self.map_experience[experience.lower()] for experience in search_params.experience],
-                    "job_type": [job_type[0] for job_type in search_params.job_type]
+                    "remote": [remote.value for remote in search_params.remote],
+                    "experience": [experience.value for experience in search_params.experience],
+                    "job_type": [job_type[0].upper() for job_type in search_params.job_type]
                 }
                 jobs = self.api.search_jobs(**input_search)
                 for job in jobs:
@@ -77,5 +101,6 @@ class LinkedinSearchTool:
 
         seen_jobs_df = pd.DataFrame(seen_jobs, columns=["job_id"])
         seen_jobs_df.to_csv("./db/seen_jobs.csv", index=False)
+
         return all_jobs 
     

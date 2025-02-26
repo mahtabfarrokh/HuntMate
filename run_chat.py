@@ -1,11 +1,9 @@
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import StateGraph, START, END
-from langgraph.types import Command, interrupt
 from langchain_openai import ChatOpenAI
 from typing_extensions import TypedDict
 from pydantic import BaseModel, Field
 from typing_extensions import Literal
-from typing import List
 import configparser
 import shutil
 import os
@@ -42,7 +40,7 @@ class HuntMate:
         config = configparser.ConfigParser()
         config.read('./api.cfg')
         self.llm = ChatOpenAI(model="gpt-4o-mini", api_key=config['openai']['api_key'])
-        self.Linkedin = LinkedinSearchTool()
+        self.linkedin_tool = LinkedinSearchTool()
         self.create_workflow()
         self.batch_size = 4
 
@@ -72,12 +70,12 @@ class HuntMate:
     
     def route_decision(self, state: State) -> str:
         """Conditional edge function to route to the appropriate node"""
-        if state["route_decision"] == "craft_email":
-            return "craft_email"
-        elif state["route_decision"] == "craft_coverletter":
-            return "craft_coverletter"
-        elif state["route_decision"] == "job_search":
-            return "populate_job_search_params"
+        route_map = {
+            "craft_email": "craft_email",
+            "craft_coverletter": "craft_coverletter",
+            "job_search": "populate_job_search_params",
+        }
+        return route_map.get(state["route_decision"], "craft_email")
         
     def craft_email(self, state: State) -> dict:
         # TODO: Attach this to a llm call 
@@ -89,25 +87,21 @@ class HuntMate:
 
     def job_search_user_interaction(self, result: JobSearchParams) -> str:
         """Prompts the user to populate all required fields for the job search"""
-
+      
+        questions = {
+            "limit": "AI: Please provide the number of jobs I should be searching through:",
+            "remote": "AI: Please provide your preference for remote: On-site, Remote, Hybrid",
+            "experience": "AI: Please provide your preference for experience: internship, entry-level, associate, mid-senior-level, director, executive",
+            "job_type": "AI: Please provide your preference for job type: full-time, contract, part-time, temporary, internship, volunteer, other",
+            "location_name": "AI: Please provide your preference for location name:",
+            "job_keywords": "AI: Please provide your preference for job keywords:"
+        }
         explanation = ""
-        for field in JobSearchParams.__fields__:
-            if field == "limit":
-                question = "AI: Please provide the number of jobs I should be searching through" + field + ":" 
-            if getattr(result, field) == []:
-                if field == "remote":
-                    question = "AI: Please provide your preference for " + field + ":" + "On-site, Remote, Hybrid"
-                if field == "experience":
-                    question = "AI: Please provide your preference for " + field + ":" + "internship, entry-level, associate, mid-senior-level, director, executive"
-                if field == "job_type":   
-                    field = field.replace("_", " ")  
-                    question = "AI: Please provide your preference for " + field + ":" + "full-time, contract, part-time, temporary, internship, volunteer, other"
-                if field == "location_name" or field == "job_keywords":
-                    field = field.replace("_", " ") 
-                    question = "AI: Please provide your preference for " + field + ":"
+        for field, question in questions.items():
+            if field == "limit" or getattr(result, field) == []:
                 print(question)
                 input_value = input("You: ").lower()
-                explanation += question + " " + input_value + "\n" 
+                explanation += question + " " + input_value + "\n"
         
         question = "AI: Please describe any other preferences you have for the job search:"
         print(question)
@@ -135,16 +129,12 @@ class HuntMate:
                 HumanMessage(content=state["user_input"]),
             ])
 
-        # Testcase:
-        # result = JobSearchParams(job_keywords=["Machine Learning Engineer"], location_name=["Vancouver"], remote=["Remote"], experience=["entry-level"], job_type=["full-time"], limit=3)
-
         return {"job_search_params": result, "user_input": state["user_input"]}
 
 
     def find_related_jobs(self, state: State) -> dict:
         """Find related jobs based on the user's input"""
-
-        found_jobs = LinkedinSearchTool().job_search(state["job_search_params"])
+        found_jobs = self.linkedin_tool.job_search(state["job_search_params"])
         self.match_llm = self.llm.with_structured_output(JobMatch)
         answer = "AI: Here are some jobs I found based on your preferences:\n"
         counter = 1
