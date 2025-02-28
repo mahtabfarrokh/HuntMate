@@ -126,3 +126,5 @@ cython_debug/
 api.cfg
 
 db/
+
+.DS_Store

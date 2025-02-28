@@ -31,11 +31,12 @@ class ExperienceLevel(Enum):
 # Shema for filling the job search parameters
 class JobSearchParams(BaseModel):
     job_keywords: List[str] = Field(description="Keywords for the job search")
-    location_name: List[str] = Field(description="Location names for the job search")
+    locations: List[str] = Field(description="Locations for the job search")
     remote: List[RemoteType] = Field(description="Remote job options")
     experience: List[ExperienceLevel] = Field(description="Experience levels")
     job_type: List[Literal["Full-time", "Contract", "Part-time", "Temporary", "Internship", "Volunteer", "Other"]] = Field(description="Types of jobs")
-    limit: int = Field(default= 10, description="Limit on the number of jobs to return")
+    limit: int = Field(description="Limit on the number of jobs to return")
+
 
 
 # Tool for searching jobs on LinkedIn using the LinkedIn API
@@ -68,7 +69,7 @@ class LinkedinSearchTool:
         print("Searching for jobs on LinkedIn")
 
         for job in search_params.job_keywords[:MAX_SEARCH_ITEMS]: 
-            for location in search_params.location_name[:MAX_SEARCH_ITEMS]:
+            for location in search_params.locations[:MAX_SEARCH_ITEMS]:
                 input_search = {
                     "keywords": job,
                     "location": location,
@@ -77,6 +78,7 @@ class LinkedinSearchTool:
                     "experience": [experience.value for experience in search_params.experience],
                     "job_type": [job_type[0].upper() for job_type in search_params.job_type]
                 }
+                print(input_search)
                 jobs = self.api.search_jobs(**input_search)
                 for job in jobs:
                     try:
@@ -102,5 +104,7 @@ class LinkedinSearchTool:
         seen_jobs_df = pd.DataFrame(seen_jobs, columns=["job_id"])
         seen_jobs_df.to_csv("./db/seen_jobs.csv", index=False)
 
+        print("Finished searching for jobs on LinkedIn")
+        print(len(all_jobs))
         return all_jobs 
     
