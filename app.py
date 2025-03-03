@@ -40,7 +40,7 @@ if st.session_state.show_job_form:
         limit = st.number_input(
             "Please provide the number of jobs I should be searching through:", 
             min_value=1, 
-            max_value=100, 
+            max_value=20, 
             value=getattr(st.session_state.form_prefill, "limit", 10)
         )
         
@@ -70,6 +70,8 @@ if st.session_state.show_job_form:
         
         submit_button = st.form_submit_button("Submit")
         
+
+        
         if submit_button:
             # Compile all inputs into an explanation string
             explanation = ""
@@ -79,11 +81,14 @@ if st.session_state.show_job_form:
             explanation += f"AI: Please provide your preference for job type: {job_type}\n"
             explanation += f"AI: Please provide your preference for location name: {locations}\n"
             explanation += f"AI: Please provide your preference for job keywords: {job_keywords}\n"
+            explanation += "[Extra Preferences Tag]"
             explanation += f"AI: Please describe any other preferences you have for the job search: {other_preferences}\n"
             
             # Process the form with your function
-            with st.spinner("Processing your job preferences, this will a while, please be patient."):
+            with st.spinner("Processing your job preferences, this will take a while, please be patient."):
                 # Call your function with the explanation
+
+                
                 response = chatbot.run(explanation, skip_router=True, filled_job_form=True)
                 
                 # Display result in the chat

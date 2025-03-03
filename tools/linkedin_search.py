@@ -6,6 +6,7 @@ from enum import Enum
 import pandas as pd
 import configparser
 import os
+import time
 
 
 MAX_SEARCH_ITEMS = 5  # Limit for job keywords and locations
@@ -30,12 +31,13 @@ class ExperienceLevel(Enum):
 
 # Shema for filling the job search parameters
 class JobSearchParams(BaseModel):
-    job_keywords: List[str] = Field(description="Keywords for the job search")
-    locations: List[str] = Field(description="Locations for the job search")
+    job_keywords: List[str] = Field(description="Main essential keywords for the job search")
+    locations: List[str] = Field(description="Locations for the job search, has to be city or country names")
     remote: List[RemoteType] = Field(description="Remote job options")
     experience: List[ExperienceLevel] = Field(description="Experience levels")
     job_type: List[Literal["Full-time", "Contract", "Part-time", "Temporary", "Internship", "Volunteer", "Other"]] = Field(description="Types of jobs")
     limit: int = Field(description="Limit on the number of jobs to return")
+    extra_preferences: str = Field(description="Extra preferences for the job search.")
 
 
 
@@ -58,6 +60,9 @@ class LinkedinSearchTool:
     
     def job_search(self, search_params: JobSearchParams) -> List[dict]:
         """ Search for jobs on LinkedIn """
+
+        print(search_params.experience)
+        print("-------")
         all_jobs = []
         if "db" not in os.listdir():
             os.mkdir("db")
@@ -68,18 +73,26 @@ class LinkedinSearchTool:
 
         print("Searching for jobs on LinkedIn")
 
-        for job in search_params.job_keywords[:MAX_SEARCH_ITEMS]: 
+        for keyword in search_params.job_keywords[:MAX_SEARCH_ITEMS]: 
             for location in search_params.locations[:MAX_SEARCH_ITEMS]:
                 input_search = {
-                    "keywords": job,
+                    "keywords": keyword,
                     "location": location,
-                    "limit": search_params.limit,
+                    "limit": search_params.limit + 30,  # Add extra jobs to account for duplicates or wrong matches
                     "remote": [remote.value for remote in search_params.remote],
                     "experience": [experience.value for experience in search_params.experience],
                     "job_type": [job_type[0].upper() for job_type in search_params.job_type]
                 }
                 print(input_search)
-                jobs = self.api.search_jobs(**input_search)
+                start_time = time.time()
+                try: 
+                    jobs = self.api.search_jobs(**input_search)
+                except Exception as e:
+                    print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+                    print(f"Error searching for jobs: {str(e)}")
+                    continue
+                end_time = time.time()
+                print(f"Time taken for search: {end_time - start_time} seconds")
                 for job in jobs:
                     try:
                         # Get detailed job information
@@ -99,6 +112,8 @@ class LinkedinSearchTool:
 
                     except Exception as e:
                         print(f"Error processing job {job_id}: {str(e)}")
+                        print(self.api.get_job(job_id))
+                        print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
                         continue
 
         seen_jobs_df = pd.DataFrame(seen_jobs, columns=["job_id"])

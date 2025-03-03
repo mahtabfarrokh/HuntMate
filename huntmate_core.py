@@ -11,7 +11,7 @@ import time
 import os
 
 from tools.linkedin_search import LinkedinSearchTool, JobSearchParams
-
+from prompts import fill_job_preferences, check_job_match, router_prompt
 
 # Schema for structured output to use as routing logic
 class Route(BaseModel):
@@ -35,7 +35,7 @@ class State(TypedDict):
 class JobMatch(TypedDict):
     match_score: int = Field(description="A score between 1 to 5 of how well the job matches the user's preferences.")
     reasonning: str = Field(description="One sentence reasonning for the choice of match_score.")
-    job_summary: str = Field(description="Summary of the job in 30 words.")
+    job_summary: str = Field(description="Summary of the job in 50 words.")
 
 
 # The main class for the HuntMate application
@@ -46,6 +46,8 @@ class HuntMate:
         config.read('./api.cfg')
         self.llm = ChatOpenAI(model="gpt-4o-mini", api_key=config['openai']['api_key'])
         self.job_llm = self.llm.with_structured_output(JobSearchParams)
+        self.match_llm = self.llm.with_structured_output(JobMatch)
+        self.router = self.llm.with_structured_output(Route)
         self.linkedin_tool = LinkedinSearchTool()
         self.create_workflow()
         self.batch_size = 4
@@ -72,15 +74,8 @@ class HuntMate:
         if state["skip_router"]:
             decision = Route(step="job_search")
         else:
-            self.router = self.llm.with_structured_output(Route)
-            decision = self.router.invoke(
-                [
-                    SystemMessage(
-                        content="Route the input to the correct choice of task based on the user's request."
-                    ),
-                    HumanMessage(content=state["user_input"]),
-                ]
-            )
+            chain = router_prompt() | self.router
+            decision = chain.invoke({"user_input": state["user_input"]})
             print("The type of the query is: ", decision)
         return {"route_decision": decision.step}
     
@@ -111,62 +106,75 @@ class HuntMate:
         """Prompts the user to populate all required fields for the job search"""
         print(">>>>> In collect_job_search_preferences")
         
-        # result = self.job_llm.invoke([
-        #         SystemMessage(
-        #             content="Populate the job search parameters based on the user's input. Leave it empty if not provided."
-        #         ),
-        #         HumanMessage(content=state["user_input"]),
-        #     ])
-        result = JobSearchParams(job_keywords=["software engineer"], locations=[], remote=[], experience=[], job_type=[], limit=5)
+        # chain = fill_job_preferences() | self.job_llm
+        # result = chain.invoke({"user_input": state["user_input"]})
+        result = JobSearchParams(job_keywords=["Machine Learning"], locations=[], remote=[], experience=[], job_type=[], limit=5, extra_preferences="")
         st.session_state.form_prefill = result
-        return {"final_response": "show_form"}
+        return {"job_search_params": result, "final_response": "show_form"}
 
-      
-        
+
     def process_job_search_params(self, state: State) -> dict:
         """Populate the job search parameters based on the user's input"""
-        print(">>>>> In process_job_search_params")
-        result = self.job_llm.invoke([
-                SystemMessage(
-                    content="Populate the job search parameters based on the user's input. Leave it empty if not provided."
-                ),
-                HumanMessage(content=state["user_input"]),
-            ])
+        ############################################################
+        # TODO: You shouldn't rely on LLM to fill all the features, 
+        # some are deterministic and doens't need LLM.
+        ############################################################
+        chain = fill_job_preferences() | self.job_llm
+        result = chain.invoke({"user_input": state["user_input"]})
         print(">>>>> Job search params")
         print(result)
         return {"job_search_params": result, "user_input": state["user_input"]}
 
-
+    def job_details_output(self, job: dict, job_match: JobMatch) -> str:
+        """Generate the output for the job details"""
+        return f"""
+            ### :briefcase: {job['title']}  
+            **Company:** {job['company']}  
+            **Match Score:** {job_match['match_score']}   
+            **Job Summary:** {job_match['job_summary']}  
+            **[🔗 Job Link]({job['job_posting_link']})**  
+            ---------------------------------
+            """
+    
     def find_related_jobs(self, state: State) -> dict:
         """Find related jobs based on the user's input"""
-        ################
-        # TODO: Iterate until you find exatly the required number of jobs
-        # Also the sequence of jobs should be based on the match score! 
-        ################
+        counter, i = 1, 0
+        chain = check_job_match() | self.match_llm
         found_jobs = self.linkedin_tool.job_search(state["job_search_params"])
-        self.match_llm = self.llm.with_structured_output(JobMatch)
-        answer = "AI: Here are some jobs I found based on your preferences:\n"
+        score_answer = {"3": [], "4": [], "5": []}
+        while counter < state["job_search_params"].limit + 1 and  i < len(found_jobs): 
+            result = chain.invoke({"user_input": str(state["job_search_params"]),
+                                    "job_description": found_jobs[i]["job_description"], 
+                                    "title": found_jobs[i]["title"],
+                                    "company": found_jobs[i]["company"],
+                                    "location": found_jobs[i]["location"],
+                                    "remote_allowed": found_jobs[i]["remote_allowed"]})
+            print("Result: ", result)
+            if result["match_score"] > 2:
+                score_answer[str(result["match_score"])].append((found_jobs[i], result))
+            if result["match_score"] > 3:
+                counter += 1
+            i += 1
+
+        print("Found jobs: ", len(found_jobs))
+        print(score_answer)
+
+        if len(score_answer["5"]) == 0 and len(score_answer["4"]) == 0 and len(score_answer["3"]) == 0:
+            answer = "I'm sorry, I couldn't find any jobs that match your preferences. Please try again with different preferences."
+            return {"final_response": answer}
+        
+        answer = "### 🔍  AI: Here are the list of jobs I found based on your preferences:\n"
+        if len(score_answer["5"]) == 0 and len(score_answer["4"]) == 0:
+            answer = "### 🔍  I couldn't find a good job match for you. Here are a list of moderate job fits:\n"
+
         counter = 1
-        human_input = "User Input and preference: " + state["user_input"] + "\n" + "Job Information: \n" 
-
-        for i in range(len(found_jobs)):
-            result = self.match_llm.invoke([
-                SystemMessage(
-                    content="Given the user's input and preferences and the job description, fill the pydantic schema."
-                ),
-                HumanMessage(content=human_input + str(found_jobs[i])),
-            ])
-            job = found_jobs[i]
-
-            answer += "Job " + str(counter) + ": " + result["job_summary"] + "\n" + "Reasoning: " + result["reasonning"] + "\n"
-            answer +=  "Job title is:" + job["title"] +"\n"
-            answer +=  "Comapny name is:" + job["company"] +"\n"
-            answer += "Job match score is:" + str(result["match_score"]) +"\n"
-            answer +=  "Job link is:" + job["job_posting_link"] +"\n" + "-----------------\n"
-            counter += 1
-            if i>1: 
-                break
-    
+        for i in range(5, 2, -1):
+            for job, result in score_answer[str(i)]:
+                answer += self.job_details_output(job, result)    
+                counter += 1
+                if counter > state["job_search_params"].limit + 5:
+                    return {"final_response": answer}
+                
         return {"final_response": answer}
 
 
@@ -206,6 +214,9 @@ class HuntMate:
     def run(self, user_input: str, skip_router: bool = True, filled_job_form: bool = False) -> str:
         """Run the HuntMate to generate the response"""
         print("NEW RUN!!")
-        print("filled_job_form: ", filled_job_form)
         response = self.workflow.invoke({"user_input": user_input, "skip_router": skip_router, "filled_job_form": filled_job_form})["final_response"]
         return response
+    
+
+# I prefer the machine learning job to be in the healthcare domain. 
+# Note: if it is remote I'm okay with everywhere in Canada and US, but If it is hybrid or on-site, I strongly prefer Vancouver city, and it HAS to be in Canada!
