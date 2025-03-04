@@ -1,41 +1,15 @@
-from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import StateGraph, START, END
 from langchain_openai import ChatOpenAI
-from typing_extensions import TypedDict
-from pydantic import BaseModel, Field
-from typing_extensions import Literal
 import streamlit as st
 import configparser
 import shutil
 import time
 import os
 
+
 from tools.linkedin_search import LinkedinSearchTool, JobSearchParams
 from prompts import fill_job_preferences, check_job_match, router_prompt
-
-# Schema for structured output to use as routing logic
-class Route(BaseModel):
-    step: Literal["craft_email", "craft_coverletter", "job_search"] = Field(
-        None, description="The next step in the routing process"
-    )
-
-
-# State schema for the LLM Agent
-class State(TypedDict):
-    user_input: str
-    route_decision: str
-    job_search_params: JobSearchParams
-    final_response: str
-    skip_router: bool
-    filled_job_form: bool 
-
-
-
-# State schema for the LLM Agent
-class JobMatch(TypedDict):
-    match_score: int = Field(description="A score between 1 to 5 of how well the job matches the user's preferences.")
-    reasonning: str = Field(description="One sentence reasonning for the choice of match_score.")
-    job_summary: str = Field(description="Summary of the job in 50 words.")
+from models import JobMatch, Route, State, JobSearchParams
 
 
 # The main class for the HuntMate application
@@ -217,6 +191,3 @@ class HuntMate:
         response = self.workflow.invoke({"user_input": user_input, "skip_router": skip_router, "filled_job_form": filled_job_form})["final_response"]
         return response
     
-
-# I prefer the machine learning job to be in the healthcare domain. 
-# Note: if it is remote I'm okay with everywhere in Canada and US, but If it is hybrid or on-site, I strongly prefer Vancouver city, and it HAS to be in Canada!

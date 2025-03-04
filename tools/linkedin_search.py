@@ -1,44 +1,15 @@
 
-from pydantic import BaseModel, Field
 from linkedin_api import Linkedin
-from typing import List, Literal
-from enum import Enum
+from typing import List
 import pandas as pd
 import configparser
 import os
 import time
 
+from models import JobSearchParams
+
 
 MAX_SEARCH_ITEMS = 5  # Limit for job keywords and locations
-
-
-# Enum for remote job types
-class RemoteType(Enum):
-    ON_SITE = "1"
-    REMOTE = "2"
-    HYBRID = "3"
-
-
-# Enum for experience levels
-class ExperienceLevel(Enum):
-    INTERNSHIP = "1"
-    ENTRY_LEVEL = "2"
-    ASSOCIATE = "3"
-    MID_SENIOR_LEVEL = "4"
-    DIRECTOR = "5"
-    EXECUTIVE = "6"
-
-
-# Shema for filling the job search parameters
-class JobSearchParams(BaseModel):
-    job_keywords: List[str] = Field(description="Main essential keywords for the job search")
-    locations: List[str] = Field(description="Locations for the job search, has to be city or country names")
-    remote: List[RemoteType] = Field(description="Remote job options")
-    experience: List[ExperienceLevel] = Field(description="Experience levels")
-    job_type: List[Literal["Full-time", "Contract", "Part-time", "Temporary", "Internship", "Volunteer", "Other"]] = Field(description="Types of jobs")
-    limit: int = Field(description="Limit on the number of jobs to return")
-    extra_preferences: str = Field(description="Extra preferences for the job search.")
-
 
 
 # Tool for searching jobs on LinkedIn using the LinkedIn API
