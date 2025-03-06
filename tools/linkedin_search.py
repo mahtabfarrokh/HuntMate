@@ -3,8 +3,9 @@ from linkedin_api import Linkedin
 from typing import List
 import pandas as pd
 import configparser
-import os
 import time
+import os
+
 
 from models import JobSearchParams
 
@@ -50,7 +51,7 @@ class LinkedinSearchTool:
                     "keywords": keyword,
                     "location": location,
                     "limit": search_params.limit + 30,  # Add extra jobs to account for duplicates or wrong matches
-                    "remote": [remote.value for remote in search_params.remote],
+                    "remote": [remote.value for remote in search_params.work_mode],
                     "experience": [experience.value for experience in search_params.experience],
                     "job_type": [job_type[0].upper() for job_type in search_params.job_type]
                 }
@@ -82,6 +83,7 @@ class LinkedinSearchTool:
                         all_jobs.append(select_info)
 
                     except Exception as e:
+                        print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
                         print(f"Error processing job {job_id}: {str(e)}")
                         print(self.api.get_job(job_id))
                         print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")

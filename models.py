@@ -5,7 +5,7 @@ from enum import Enum
 
 
 # Enum for remote job types
-class RemoteType(Enum):
+class WorkMode(Enum):
     ON_SITE = "1"
     REMOTE = "2"
     HYBRID = "3"
@@ -25,7 +25,7 @@ class ExperienceLevel(Enum):
 class JobSearchParams(BaseModel):
     job_keywords: List[str] = Field(description="Main essential keywords for the job search")
     locations: List[str] = Field(description="Locations for the job search, has to be city or country names")
-    remote: List[RemoteType] = Field(description="Remote job options")
+    work_mode: List[WorkMode] = Field(description="Work mode options are on-site, remote, or hybrid")
     experience: List[ExperienceLevel] = Field(description="Experience levels")
     job_type: List[Literal["Full-time", "Contract", "Part-time", "Temporary", "Internship", "Volunteer", "Other"]] = Field(description="Types of jobs")
     limit: int = Field(description="Limit on the number of jobs to return")
@@ -35,7 +35,7 @@ class JobSearchParams(BaseModel):
 
 # Schema for structured output to use as routing logic
 class Route(BaseModel):
-    step: Literal["craft_email", "craft_coverletter", "job_search"] = Field(
+    step: Literal["craft_email", "craft_coverletter", "job_search", "unsupported_task"] = Field(
         None, description="The next step in the routing process"
     )
 
@@ -48,7 +48,6 @@ class State(TypedDict):
     final_response: str
     skip_router: bool
     filled_job_form: bool 
-
 
 
 # State schema for the LLM Agent

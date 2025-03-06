@@ -45,7 +45,7 @@ if st.session_state.show_job_form:
         )
         
         remote = st.multiselect(
-            "Please provide your preference for remote:", 
+            "Please provide your preference for work mode:", 
             options=["On-site", "Remote", "Hybrid"]
         )
         
@@ -76,7 +76,7 @@ if st.session_state.show_job_form:
             # Compile all inputs into an explanation string
             explanation = ""
             explanation += f"AI: Please provide the number of jobs I should be searching through: {limit}\n"
-            explanation += f"AI: Please provide your preference for remote: {remote}\n"
+            explanation += f"AI: Please provide your preference for work mode: {remote}\n"
             explanation += f"AI: Please provide your preference for experience: {experience}\n"
             explanation += f"AI: Please provide your preference for job type: {job_type}\n"
             explanation += f"AI: Please provide your preference for location name: {locations}\n"

@@ -1,9 +1,8 @@
 from langgraph.graph import StateGraph, START, END
-from langchain_openai import ChatOpenAI
+from litellm import completion
 import streamlit as st
 import configparser
 import shutil
-import time
 import os
 
 
@@ -12,16 +11,19 @@ from prompts import fill_job_preferences, check_job_match, router_prompt
 from models import JobMatch, Route, State, JobSearchParams
 
 
+# TODO: Run tests on the application
+# TODO: check how would open-source LLMs work with the current implementation
+# TODO: make suggestions on how to improve the resume based on the job description
+
+
 # The main class for the HuntMate application
 class HuntMate:
     def __init__(self):
         self.clean_cache()
         config = configparser.ConfigParser()
         config.read('./api.cfg')
-        self.llm = ChatOpenAI(model="gpt-4o-mini", api_key=config['openai']['api_key'])
-        self.job_llm = self.llm.with_structured_output(JobSearchParams)
-        self.match_llm = self.llm.with_structured_output(JobMatch)
-        self.router = self.llm.with_structured_output(Route)
+        os.environ["OPENAI_API_KEY"] = config['openai']['api_key']
+        self.model_name = "gpt-4o-mini"
         self.linkedin_tool = LinkedinSearchTool()
         self.create_workflow()
         self.batch_size = 4
@@ -48,8 +50,13 @@ class HuntMate:
         if state["skip_router"]:
             decision = Route(step="job_search")
         else:
-            chain = router_prompt() | self.router
-            decision = chain.invoke({"user_input": state["user_input"]})
+            response = completion(
+                model= self.model_name,
+                messages=router_prompt(state["user_input"]),
+                response_format=Route,
+            )
+            json_content = response.choices[0].message.content
+            decision = JobSearchParams.parse_raw(json_content)
             print("The type of the query is: ", decision)
         return {"route_decision": decision.step}
     
@@ -59,12 +66,14 @@ class HuntMate:
             "craft_email": "craft_email",
             "craft_coverletter": "craft_coverletter",
             "job_search": "collect_job_search_preferences",
+            "unsupported_task": "unsupported_task"
         }
         if state["filled_job_form"]: 
              route_map = {
                 "craft_email": "craft_email",
                 "craft_coverletter": "craft_coverletter",
                 "job_search": "process_job_search_params",
+                "unsupported_task": "unsupported_task"
             }
         return route_map.get(state["route_decision"], "craft_email")
         
@@ -79,28 +88,34 @@ class HuntMate:
     def collect_job_search_preferences(self, state: State) -> dict:
         """Prompts the user to populate all required fields for the job search"""
         print(">>>>> In collect_job_search_preferences")
+        # response = completion(
+        #     model= self.model_name,
+        #     messages=fill_job_preferences(state["user_input"]),
+        #     response_format=JobSearchParams,
+        # )
+        # json_content = response.choices[0].message.content
+        # result = JobSearchParams.parse_raw(json_content)
         
-        # chain = fill_job_preferences() | self.job_llm
-        # result = chain.invoke({"user_input": state["user_input"]})
-        result = JobSearchParams(job_keywords=["Machine Learning"], locations=[], remote=[], experience=[], job_type=[], limit=5, extra_preferences="")
+        result = JobSearchParams(job_keywords=["Machine Learning"], locations=[], work_mode=[], experience=[], job_type=[], limit=5, extra_preferences="")
         st.session_state.form_prefill = result
         return {"job_search_params": result, "final_response": "show_form"}
 
-
     def process_job_search_params(self, state: State) -> dict:
         """Populate the job search parameters based on the user's input"""
-        ############################################################
-        # TODO: You shouldn't rely on LLM to fill all the features, 
-        # some are deterministic and doens't need LLM.
-        ############################################################
-        chain = fill_job_preferences() | self.job_llm
-        result = chain.invoke({"user_input": state["user_input"]})
+        response = completion(
+            model= self.model_name,
+            messages=fill_job_preferences(state["user_input"]),
+            response_format=JobSearchParams,
+        )
+        json_content = response.choices[0].message.content
+        result = JobSearchParams.parse_raw(json_content)
         print(">>>>> Job search params")
         print(result)
         return {"job_search_params": result, "user_input": state["user_input"]}
 
     def job_details_output(self, job: dict, job_match: JobMatch) -> str:
         """Generate the output for the job details"""
+        # TODO: This should be moved to app.py
         return f"""
             ### :briefcase: {job['title']}  
             **Company:** {job['company']}  
@@ -113,17 +128,21 @@ class HuntMate:
     def find_related_jobs(self, state: State) -> dict:
         """Find related jobs based on the user's input"""
         counter, i = 1, 0
-        chain = check_job_match() | self.match_llm
-        found_jobs = self.linkedin_tool.job_search(state["job_search_params"])
         score_answer = {"3": [], "4": [], "5": []}
+        
+        found_jobs = self.linkedin_tool.job_search(state["job_search_params"])
+        print("Found jobs: ", len(found_jobs))
+
         while counter < state["job_search_params"].limit + 1 and  i < len(found_jobs): 
-            result = chain.invoke({"user_input": str(state["job_search_params"]),
-                                    "job_description": found_jobs[i]["job_description"], 
-                                    "title": found_jobs[i]["title"],
-                                    "company": found_jobs[i]["company"],
-                                    "location": found_jobs[i]["location"],
-                                    "remote_allowed": found_jobs[i]["remote_allowed"]})
-            print("Result: ", result)
+
+            response = completion(
+                model= self.model_name,
+                messages=check_job_match(str(state["job_search_params"]), found_jobs[i]["title"], found_jobs[i]["company"], found_jobs[i]["location"], found_jobs[i]["job_description"]),
+                response_format=JobMatch,
+            )
+            json_content = response.choices[0].message.content
+            result = JobMatch.parse_raw(json_content)
+
             if result["match_score"] > 2:
                 score_answer[str(result["match_score"])].append((found_jobs[i], result))
             if result["match_score"] > 3:
@@ -151,7 +170,10 @@ class HuntMate:
                 
         return {"final_response": answer}
 
-
+    def unsupported_task(self, state: State) -> dict:
+        """Return a response for an unsupported task"""
+        return {"final_response": "I'm sorry, I can't help with that. If you believe JobMate should be able to help with this, please let us know by raising an issue in our Git repo."}
+    
     def create_workflow(self) -> None:
         """Create the workflow for the HuntMate application"""
 
@@ -160,6 +182,7 @@ class HuntMate:
         # Add nodes
         self.workflow.add_node("main_task_router", self.main_task_router)
         self.workflow.add_node("craft_email", self.craft_email)
+        self.workflow.add_node("unsupported_task", self.unsupported_task)
         self.workflow.add_node("craft_coverletter", self.craft_coverletter)
         self.workflow.add_node("collect_job_search_preferences", self.collect_job_search_preferences)
         self.workflow.add_node("process_job_search_params", self.process_job_search_params)
@@ -170,11 +193,12 @@ class HuntMate:
         self.workflow.add_conditional_edges(
             "main_task_router",
             self.route_decision,
-            {  # Name returned by route_decision : Name of next node to visit
+            { 
                 "craft_email": "craft_email",
                 "craft_coverletter": "craft_coverletter",
                 "process_job_search_params": "process_job_search_params",
                 "collect_job_search_preferences": "collect_job_search_preferences",
+                "unsupported_task": "unsupported_task"
             },
         )
         self.workflow.add_edge("craft_email", END)
@@ -182,12 +206,13 @@ class HuntMate:
         self.workflow.add_edge("collect_job_search_preferences", END)
         self.workflow.add_edge("process_job_search_params", "find_related_jobs")
         self.workflow.add_edge("find_related_jobs", END)
+        self.workflow.add_edge("unsupported_task", END)
+
         self.workflow = self.workflow.compile()   
         return 
 
     def run(self, user_input: str, skip_router: bool = True, filled_job_form: bool = False) -> str:
         """Run the HuntMate to generate the response"""
-        print("NEW RUN!!")
         response = self.workflow.invoke({"user_input": user_input, "skip_router": skip_router, "filled_job_form": filled_job_form})["final_response"]
         return response
     
