@@ -18,15 +18,16 @@ from models import JobMatch, Route, State, JobSearchParams
 
 # The main class for the HuntMate application
 class HuntMate:
-    def __init__(self):
+    def __init__(self, model_name: str = "gpt-4o-mini") -> None:
+        """Initialize the HuntMate application"""
+        print("In the init", model_name)
         self.clean_cache()
         config = configparser.ConfigParser()
         config.read('./api.cfg')
         os.environ["OPENAI_API_KEY"] = config['openai']['api_key']
-        self.model_name = "gpt-4o-mini"
+        self.model_name = model_name
         self.linkedin_tool = LinkedinSearchTool()
         self.create_workflow()
-        self.batch_size = 4
         
         
     def generate_response(self, response: str, role: str = "assistant") -> None:
@@ -102,12 +103,15 @@ class HuntMate:
 
     def process_job_search_params(self, state: State) -> dict:
         """Populate the job search parameters based on the user's input"""
+        print(">>>>> In process_job_search_params")
         response = completion(
             model= self.model_name,
             messages=fill_job_preferences(state["user_input"]),
             response_format=JobSearchParams,
+            
         )
         json_content = response.choices[0].message.content
+
         result = JobSearchParams.parse_raw(json_content)
         print(">>>>> Job search params")
         print(result)

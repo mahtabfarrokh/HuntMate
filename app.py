@@ -1,4 +1,5 @@
 import streamlit as st
+import argparse
 import os
 
 from huntmate_core import HuntMate
@@ -8,7 +9,11 @@ if not os.path.exists("./api.cfg"):
     st.error("Please create an `api.cfg` file with your keys, for an example see `api.cfg.example`.")
     st.stop()
 
-chatbot = HuntMate()
+parser = argparse.ArgumentParser()
+parser.add_argument("--model_name", type=str, default="gpt4o-mini", help="The name of the model to use.")
+args = parser.parse_args()
+
+chatbot = HuntMate(model_name=args.model_name)
 
 st.title("Welcome to HuntMate!")
 st.write("I am your companion in job hunting! :)")
@@ -34,8 +39,6 @@ if st.session_state.show_job_form:
     st.subheader("Job Search Preferences")
     with st.form(key="job_form"):
         # Define form fields based on your questions
-        print(">>>>>>>>>>>>>>>>>>>>>>>>>>")
-        print(st.session_state.form_prefill)
 
         limit = st.number_input(
             "Please provide the number of jobs I should be searching through:", 
