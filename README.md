@@ -13,4 +13,35 @@ So, I decided to build HuntMate—an AI-powered job search assistant—to make m
 
 Since a true mate should be able to handle a variety of requests, HuntMate is an **LLM agent** at its core, powered by `GPT-4o-mini`. However, you can swap out the LLM with any model of your choice.
 
-🛠️ Development is currently in progress, and I'm aiming to release the first version by the end of February. Keep an eye out for updates!
+🛠️ Development is currently in progress, and I would appreciate any sort of insights or suggestions!
+
+
+## Configuration Instructions
+
+#### 1. Set Up a Virtual Environment and Install Dependencies
+
+```bash
+python -m venv env
+source env/bin/activate
+pip install -r requirements.txt 
+```
+
+#### 2. Config `api.cfg`
+
+Update `api.cfg.example` with your username, password, and API keys, then rename it to `api.cfg`.
+
+## Run HuntMate
+
+To launch the app, run the following command in your terminal:
+
+```bash
+streamlit run app.py
+```
+
+The application defaults to using `gpt-4o-mini` as its language model. However, you can select a different LLM since the application utilizes LiteLLM for model integration.
+Note that the application requires a model with structured-output capabilities. 
+To specify a different model, use:
+
+```bash
+streamlit run app.py -- --model_name="gpt-4o"
+```

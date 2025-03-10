@@ -1,0 +1,5 @@
+[linkedin]
+username = your_username
+password = your_password
+[openai]
+api_key = your_api_key
