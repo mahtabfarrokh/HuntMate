@@ -51,7 +51,7 @@ class State(TypedDict):
 
 
 # State schema for the LLM Agent
-class JobMatch(TypedDict):
+class JobMatch(BaseModel):
     match_score: int = Field(description="A score between 1 to 5 of how well the job matches the user's preferences.")
     reasonning: str = Field(description="One sentence reasonning for the choice of match_score.")
     job_summary: str = Field(description="Summary of the job in 50 words.")

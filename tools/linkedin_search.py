@@ -50,11 +50,13 @@ class LinkedinSearchTool:
                 input_search = {
                     "keywords": keyword,
                     "location": location,
-                    "limit": search_params.limit + 30,  # Add extra jobs to account for duplicates or wrong matches
+                    "limit": search_params.limit ,  # Add extra jobs to account for duplicates or wrong matches
                     "remote": [remote.value for remote in search_params.work_mode],
                     "experience": [experience.value for experience in search_params.experience],
-                    "job_type": [job_type[0].upper() for job_type in search_params.job_type]
+                    "job_type": [job_type[0].upper() for job_type in search_params.job_type],
+                    "listed_at": 24*60*60*30,  # Jobs listed in the last 30 days
                 }
+
                 print(input_search)
                 start_time = time.time()
                 try: 
@@ -63,8 +65,7 @@ class LinkedinSearchTool:
                     print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
                     print(f"Error searching for jobs: {str(e)}")
                     continue
-                end_time = time.time()
-                print(f"Time taken for search: {end_time - start_time} seconds")
+                
                 for job in jobs:
                     try:
                         # Get detailed job information
@@ -77,17 +78,20 @@ class LinkedinSearchTool:
                                         "company": self.get_company_name(details),
                                         "location": details.get('formattedLocation', 'unknown'),
                                         "remote_allowed": details.get('workRemoteAllowed', 'unknown'),
-                                        "job_description": details.get('description', 'unknown').get('text', 'unknown'),
+                                        "job_description": details.get('description', dict()).get('text', 'unknown'),
                                         "job_posting_link": "https://www.linkedin.com/jobs/view/" + job_id,
                                         "job_id": job_id}
+                        
                         all_jobs.append(select_info)
 
                     except Exception as e:
                         print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
                         print(f"Error processing job {job_id}: {str(e)}")
-                        print(self.api.get_job(job_id))
                         print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
                         continue
+
+                end_time = time.time()
+                print(f"Time taken for search: {end_time - start_time} seconds")\
 
         seen_jobs_df = pd.DataFrame(seen_jobs, columns=["job_id"])
         seen_jobs_df.to_csv("./db/seen_jobs.csv", index=False)
@@ -96,3 +100,5 @@ class LinkedinSearchTool:
         print(len(all_jobs))
         return all_jobs 
     
+
+

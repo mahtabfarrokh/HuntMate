@@ -11,9 +11,13 @@ from prompts import fill_job_preferences, check_job_match, router_prompt
 from models import JobMatch, Route, State, JobSearchParams
 
 
-# TODO: Run tests on the application
+# TODO: Fix the way the found jobs will show up in the chat
+# TODO: Handle semantic fact memory saving
+# TODO: make the scoring part of the job search more robust, shouldn't be too sensitive to the keyword
 # TODO: check how would open-source LLMs work with the current implementation
 # TODO: make suggestions on how to improve the resume based on the job description
+# TODO: if the llm model is not correct prompt the user to provide the correct model name
+# TODO: is there a way around this pydantic/json formatting for open-source llms? 
 
 
 # The main class for the HuntMate application
@@ -89,15 +93,18 @@ class HuntMate:
     def collect_job_search_preferences(self, state: State) -> dict:
         """Prompts the user to populate all required fields for the job search"""
         print(">>>>> In collect_job_search_preferences")
-        # response = completion(
-        #     model= self.model_name,
-        #     messages=fill_job_preferences(state["user_input"]),
-        #     response_format=JobSearchParams,
-        # )
-        # json_content = response.choices[0].message.content
-        # result = JobSearchParams.parse_raw(json_content)
-        
-        result = JobSearchParams(job_keywords=["Machine Learning"], locations=[], work_mode=[], experience=[], job_type=[], limit=5, extra_preferences="")
+        response = completion(
+            model= self.model_name,
+            messages=fill_job_preferences(state["user_input"]),
+            response_format=JobSearchParams,
+        )
+        json_content = response.choices[0].message.content
+        result = JobSearchParams.parse_raw(json_content)
+        if result.limit < 1:
+            result.limit = 1
+        if result.limit > 50: 
+            result.limit = 50
+        # result = JobSearchParams(job_keywords=["Machine Learning"], locations=["Vancouver"], work_mode=[], experience=[], job_type=[], limit=20, extra_preferences="")
         st.session_state.form_prefill = result
         return {"job_search_params": result, "final_response": "show_form"}
 
@@ -107,12 +114,12 @@ class HuntMate:
         response = completion(
             model= self.model_name,
             messages=fill_job_preferences(state["user_input"]),
-            response_format=JobSearchParams,
-            
+            response_format=JobSearchParams, 
         )
         json_content = response.choices[0].message.content
-
         result = JobSearchParams.parse_raw(json_content)
+        if result.locations == []:
+            result.locations = ["Worldwide"]
         print(">>>>> Job search params")
         print(result)
         return {"job_search_params": result, "user_input": state["user_input"]}
@@ -121,24 +128,25 @@ class HuntMate:
         """Generate the output for the job details"""
         # TODO: This should be moved to app.py
         return f"""
-            ### :briefcase: {job['title']}  
-            **Company:** {job['company']}  
-            **Match Score:** {job_match['match_score']}   
-            **Job Summary:** {job_match['job_summary']}  
-            **[🔗 Job Link]({job['job_posting_link']})**  
-            ---------------------------------
-            """
+        ### :briefcase: {job['title']}  
+        **Company:** {job['company']}  
+        **Match Score:** {job_match.match_score}   
+        **Job Summary:** {job_match.job_summary}  
+        **Job Reasoning:** {job_match.reasonning}  
+        **[🔗 Job Link]({job['job_posting_link']})**  
+        ---------------------------------
+        """
     
     def find_related_jobs(self, state: State) -> dict:
         """Find related jobs based on the user's input"""
         counter, i = 1, 0
-        score_answer = {"3": [], "4": [], "5": []}
+        score_answer = {"1":[], "2":[],"3": [], "4": [], "5": []}
         
         found_jobs = self.linkedin_tool.job_search(state["job_search_params"])
         print("Found jobs: ", len(found_jobs))
 
         while counter < state["job_search_params"].limit + 1 and  i < len(found_jobs): 
-
+            print("Processing job: ", i)
             response = completion(
                 model= self.model_name,
                 messages=check_job_match(str(state["job_search_params"]), found_jobs[i]["title"], found_jobs[i]["company"], found_jobs[i]["location"], found_jobs[i]["job_description"]),
@@ -147,25 +155,19 @@ class HuntMate:
             json_content = response.choices[0].message.content
             result = JobMatch.parse_raw(json_content)
 
-            if result["match_score"] > 2:
-                score_answer[str(result["match_score"])].append((found_jobs[i], result))
-            if result["match_score"] > 3:
+            print("Match score: ", result.match_score, found_jobs[i]["title"])
+
+            score_answer[str(result.match_score)].append((found_jobs[i], result))
+            if result.match_score > 3:
                 counter += 1
             i += 1
-
-        print("Found jobs: ", len(found_jobs))
-        print(score_answer)
-
-        if len(score_answer["5"]) == 0 and len(score_answer["4"]) == 0 and len(score_answer["3"]) == 0:
-            answer = "I'm sorry, I couldn't find any jobs that match your preferences. Please try again with different preferences."
-            return {"final_response": answer}
         
-        answer = "### 🔍  AI: Here are the list of jobs I found based on your preferences:\n"
+        answer = f"""### 🔍 Here are the list of jobs I found based on your preferences:\n"""
         if len(score_answer["5"]) == 0 and len(score_answer["4"]) == 0:
-            answer = "### 🔍  I couldn't find a good job match for you. Here are a list of moderate job fits:\n"
+            answer = f"### 🔍  I couldn't find a good job match for you. Here are a list of moderate job fits:\n"
 
         counter = 1
-        for i in range(5, 2, -1):
+        for i in range(5, 0, -1):
             for job, result in score_answer[str(i)]:
                 answer += self.job_details_output(job, result)    
                 counter += 1
@@ -220,3 +222,5 @@ class HuntMate:
         response = self.workflow.invoke({"user_input": user_input, "skip_router": skip_router, "filled_job_form": filled_job_form})["final_response"]
         return response
     
+
+

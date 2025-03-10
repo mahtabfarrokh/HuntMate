@@ -30,7 +30,6 @@ pip install -r requirements.txt
 
 Update `api.cfg.example` with your username, password, and API keys, then rename it to `api.cfg`.
 
-
 ## Run HuntMate
 
 To launch the app, run the following command in your terminal:
@@ -39,7 +38,7 @@ To launch the app, run the following command in your terminal:
 streamlit run app.py
 ```
 
-The application defaults to using `gpt4o-mini` as its language model. However, you can select a different LLM since the application utilizes LiteLLM for model integration.
+The application defaults to using `gpt-4o-mini` as its language model. However, you can select a different LLM since the application utilizes LiteLLM for model integration.
 Note that the application requires a model with structured-output capabilities. 
 To specify a different model, use:
 

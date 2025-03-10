@@ -10,7 +10,7 @@ if not os.path.exists("./api.cfg"):
     st.stop()
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--model_name", type=str, default="gpt4o-mini", help="The name of the model to use.")
+parser.add_argument("--model_name", type=str, default="gpt-4o-mini", help="The name of the model to use.")
 args = parser.parse_args()
 
 chatbot = HuntMate(model_name=args.model_name)
@@ -39,11 +39,10 @@ if st.session_state.show_job_form:
     st.subheader("Job Search Preferences")
     with st.form(key="job_form"):
         # Define form fields based on your questions
-
         limit = st.number_input(
             "Please provide the number of jobs I should be searching through:", 
             min_value=1, 
-            max_value=20, 
+            max_value=50, 
             value=getattr(st.session_state.form_prefill, "limit", 10)
         )
         
@@ -96,7 +95,7 @@ if st.session_state.show_job_form:
                 
                 # Display result in the chat
                 with st.chat_message("assistant"):
-                    st.markdown(response)
+                    st.markdown(response, unsafe_allow_html=True)
                 
                 # Add assistant message to chat history
                 st.session_state.messages.append({"role": "assistant", "content": response})
