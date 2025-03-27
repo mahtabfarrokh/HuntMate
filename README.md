@@ -15,7 +15,6 @@ Since a true mate should be able to handle a variety of requests, HuntMate is an
 
 🛠️ Development is currently in progress, and I would appreciate any sort of insights or suggestions!
 
-
 ## Configuration Instructions
 
 #### 1. Set Up a Virtual Environment and Install Dependencies

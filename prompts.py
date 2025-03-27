@@ -8,7 +8,7 @@ def fill_job_preferences(user_input) -> List[dict]:
                 Populate the JSON job search parameters based on the user's input. Leave fields empty if not provided.
 
                 ### Additional Considerations:
-
+                
                 - **Locations Handling:**
                 - If the user provides **only a country name**, include the country name along with its top 5 major cities.  
                     - Example: `"United States"` → `["United States", "New York", "Los Angeles", "Chicago", "Houston", "San Francisco"]`
