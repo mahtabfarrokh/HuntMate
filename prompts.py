@@ -8,7 +8,7 @@ def fill_job_preferences(user_input) -> List[dict]:
                 Populate the JSON job search parameters based on the user's input. Leave fields empty if not provided.
 
                 ### Additional Considerations:
-                
+
                 - **Locations Handling:**
                 - If the user provides **only a country name**, include the country name along with its top 5 major cities.  
                     - Example: `"United States"` → `["United States", "New York", "Los Angeles", "Chicago", "Houston", "San Francisco"]`
@@ -53,6 +53,9 @@ def check_job_match(user_input, title, company, location, job_description) -> Li
                 A job lacking essential keywords should not score higher than 2.
                 A remote job mismatch is less penalizing than a location mismatch if remote flexibility is unclear.
                 
+                Note: It's perfectly fine if the job title doesn't exactly match the keyword, as long as the keyword is mentioned in the job description.
+                For example: if the keyword is "machine learning" but the job title is "Data Scientist" and the description includes machine learning tasks, that's still a valid match.
+
                 Provide a brief justification for the score under `reasonning`.
                 """},
         {"role": "user", "content": f"""

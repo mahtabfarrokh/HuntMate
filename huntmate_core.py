@@ -11,9 +11,8 @@ from prompts import fill_job_preferences, check_job_match, router_prompt
 from models import JobMatch, Route, State, JobSearchParams
 
 
-# TODO: Fix the way the found jobs will show up in the chat
+
 # TODO: Handle semantic fact memory saving
-# TODO: make the scoring part of the job search more robust, shouldn't be too sensitive to the keyword
 # TODO: check how would open-source LLMs work with the current implementation
 # TODO: make suggestions on how to improve the resume based on the job description
 # TODO: if the llm model is not correct prompt the user to provide the correct model name
@@ -93,18 +92,18 @@ class HuntMate:
     def collect_job_search_preferences(self, state: State) -> dict:
         """Prompts the user to populate all required fields for the job search"""
         print(">>>>> In collect_job_search_preferences")
-        response = completion(
-            model= self.model_name,
-            messages=fill_job_preferences(state["user_input"]),
-            response_format=JobSearchParams,
-        )
-        json_content = response.choices[0].message.content
-        result = JobSearchParams.parse_raw(json_content)
-        if result.limit < 1:
-            result.limit = 1
-        if result.limit > 50: 
-            result.limit = 50
-        # result = JobSearchParams(job_keywords=["Machine Learning"], locations=["Vancouver"], work_mode=[], experience=[], job_type=[], limit=20, extra_preferences="")
+        # response = completion(
+        #     model= self.model_name,
+        #     messages=fill_job_preferences(state["user_input"]),
+        #     response_format=JobSearchParams,
+        # )
+        # json_content = response.choices[0].message.content
+        # result = JobSearchParams.parse_raw(json_content)
+        # if result.limit < 1:
+        #     result.limit = 1
+        # if result.limit > 50: 
+        #     result.limit = 50
+        result = JobSearchParams(job_keywords=["Machine Learning"], locations=["United States"], work_mode=[], experience=[], job_type=[], limit=20, extra_preferences="I am looking for machine learning jobs in healthcare domain. Exmples: cancer prognosis, medical imaging, survival analysis, etc.")
         st.session_state.form_prefill = result
         return {"job_search_params": result, "final_response": "show_form"}
 
@@ -127,15 +126,7 @@ class HuntMate:
     def job_details_output(self, job: dict, job_match: JobMatch) -> str:
         """Generate the output for the job details"""
         # TODO: This should be moved to app.py
-        return f"""
-        ### :briefcase: {job['title']}  
-        **Company:** {job['company']}  
-        **Match Score:** {job_match.match_score}   
-        **Job Summary:** {job_match.job_summary}  
-        **Job Reasoning:** {job_match.reasonning}  
-        **[🔗 Job Link]({job['job_posting_link']})**  
-        ---------------------------------
-        """
+        return f"""### :briefcase: {job['title']}  \n ###### **Company:** {job['company']}  \n ###### **Match Score:** {job_match.match_score}  \n ###### **Job Summary:** {job_match.job_summary}  \n ###### **Job Reasoning:** {job_match.reasonning}  \n ###### **[🔗 Job Link]({job['job_posting_link']})**  \n---------------------------------\n"""
     
     def find_related_jobs(self, state: State) -> dict:
         """Find related jobs based on the user's input"""

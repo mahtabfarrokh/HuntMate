@@ -95,7 +95,7 @@ if st.session_state.show_job_form:
                 
                 # Display result in the chat
                 with st.chat_message("assistant"):
-                    st.markdown(response, unsafe_allow_html=True)
+                    st.markdown(response)
                 
                 # Add assistant message to chat history
                 st.session_state.messages.append({"role": "assistant", "content": response})
