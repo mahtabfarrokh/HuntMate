@@ -14,6 +14,13 @@ So, I decided to build HuntMate—an AI-powered job search assistant—to make m
 Since a true mate should be able to handle a variety of requests, HuntMate is an **LLM agent** at its core, powered by `GPT-4o-mini`. However, you can swap out the LLM with any model of your choice.
 
 🛠️ Development is currently in progress, and I would appreciate any sort of insights or suggestions!
+Here’s an overview of the current LLM agent workflow:
+
+<div align="center">
+    <img src="images/diagram.png" alt="Diagram"><br>
+    <br><br>
+</div>
+
 
 ## Configuration Instructions
 

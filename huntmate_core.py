@@ -1,4 +1,6 @@
+from langchain_core.runnables.graph import CurveStyle, MermaidDrawMethod, NodeStyles
 from langgraph.graph import StateGraph, START, END
+from IPython.display import Image, display
 from litellm import completion
 import streamlit as st
 import configparser
@@ -12,11 +14,14 @@ from models import JobMatch, Route, State, JobSearchParams
 
 
 
-# TODO: Handle semantic fact memory saving
+# TODO: Handle long term memory langgraph
 # TODO: check how would open-source LLMs work with the current implementation
 # TODO: make suggestions on how to improve the resume based on the job description
 # TODO: if the llm model is not correct prompt the user to provide the correct model name
 # TODO: is there a way around this pydantic/json formatting for open-source llms? 
+# TODO: Add logo and improve the UI
+# TODO: find a way around project setup for users with no experience in python
+# TODO: Add new chat button to reset the memory
 
 
 # The main class for the HuntMate application
@@ -206,6 +211,12 @@ class HuntMate:
         self.workflow.add_edge("unsupported_task", END)
 
         self.workflow = self.workflow.compile()   
+        # with open("diagram.png", "wb") as f:
+        #     f.write(
+        #     self.workflow.get_graph().draw_mermaid_png(
+        #         draw_method=MermaidDrawMethod.API,
+        #     )
+        #     )
         return 
 
     def run(self, user_input: str, skip_router: bool = True, filled_job_form: bool = False) -> str:
