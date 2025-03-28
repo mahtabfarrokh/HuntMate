@@ -23,7 +23,6 @@ from models import JobMatch, Route, State, JobSearchParams
 # TODO: find a way around project setup for users with no experience in python
 # TODO: Add new chat button to reset the memory
 
-
 # The main class for the HuntMate application
 class HuntMate:
     def __init__(self, model_name: str = "gpt-4o-mini") -> None:

@@ -8,6 +8,7 @@ import os
 
 
 from models import JobSearchParams
+import asyncio
 
 
 MAX_SEARCH_ITEMS = 5  # Limit for job keywords and locations
@@ -32,9 +33,6 @@ class LinkedinSearchTool:
     
     def job_search(self, search_params: JobSearchParams) -> List[dict]:
         """ Search for jobs on LinkedIn """
-
-        print(search_params.experience)
-        print("-------")
         all_jobs = []
         if "db" not in os.listdir():
             os.mkdir("db")
@@ -66,29 +64,52 @@ class LinkedinSearchTool:
                     print(f"Error searching for jobs: {str(e)}")
                     continue
                 
-                for job in jobs:
-                    try:
-                        # Get detailed job information
+                async def fetch_job_details(job_id):
+                    def blocking_call():
+                        try:
+                            details = self.api.get_job(job_id)
+                            return {
+                                "job_id": job_id,
+                                "details": details
+                            }
+                        except Exception as e:
+                            print(f"Error fetching job {job_id}: {str(e)}")
+                            return None
+
+                    return await asyncio.to_thread(blocking_call)
+
+                async def process_jobs(jobs):
+                    tasks = []
+                    for job in jobs:
                         job_id = job["entityUrn"].split(":")[-1]
                         if job_id in seen_jobs:
                             continue
                         seen_jobs.add(job_id)
-                        details = self.api.get_job(job_id)
-                        select_info = {"title": details.get('title', 'unknown'),
-                                        "company": self.get_company_name(details),
-                                        "location": details.get('formattedLocation', 'unknown'),
-                                        "remote_allowed": details.get('workRemoteAllowed', 'unknown'),
-                                        "job_description": details.get('description', dict()).get('text', 'unknown'),
-                                        "job_posting_link": "https://www.linkedin.com/jobs/view/" + job_id,
-                                        "job_id": job_id}
-                        
-                        all_jobs.append(select_info)
+                        tasks.append(fetch_job_details(job_id))
 
-                    except Exception as e:
-                        print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-                        print(f"Error processing job {job_id}: {str(e)}")
-                        print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-                        continue
+                    results = []
+                    batch_size = 8
+                    for i in range(0, len(tasks), batch_size):
+                        batch = tasks[i:i + batch_size]
+                        batch_results = await asyncio.gather(*batch, return_exceptions=True)
+                        results.extend(batch_results)
+                    
+                    for result in results:
+                        if result and isinstance(result, dict):
+                            details = result["details"]
+                            job_id = result["job_id"]
+                            select_info = {
+                                "title": details.get('title', 'unknown'),
+                                "company": self.get_company_name(details),
+                                "location": details.get('formattedLocation', 'unknown'),
+                                "remote_allowed": details.get('workRemoteAllowed', 'unknown'),
+                                "job_description": details.get('description', dict()).get('text', 'unknown'),
+                                "job_posting_link": "https://www.linkedin.com/jobs/view/" + job_id,
+                                "job_id": job_id
+                            }
+                            all_jobs.append(select_info)
+
+                asyncio.run(process_jobs(jobs))
 
                 end_time = time.time()
                 print(f"Time taken for search: {end_time - start_time} seconds")\
