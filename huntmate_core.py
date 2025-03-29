@@ -1,7 +1,7 @@
 from langchain_core.runnables.graph import CurveStyle, MermaidDrawMethod, NodeStyles
 from langgraph.graph import StateGraph, START, END
 from IPython.display import Image, display
-from litellm import completion
+from litellm import batch_completion, completion
 import streamlit as st
 import configparser
 import shutil
@@ -23,11 +23,11 @@ from models import JobMatch, Route, State, JobSearchParams
 # TODO: find a way around project setup for users with no experience in python
 # TODO: Add new chat button to reset the memory
 
+
 # The main class for the HuntMate application
 class HuntMate:
     def __init__(self, model_name: str = "gpt-4o-mini") -> None:
         """Initialize the HuntMate application"""
-        print("In the init", model_name)
         self.clean_cache()
         config = configparser.ConfigParser()
         config.read('./api.cfg')
@@ -139,24 +139,24 @@ class HuntMate:
         
         found_jobs = self.linkedin_tool.job_search(state["job_search_params"])
         print("Found jobs: ", len(found_jobs))
-
+        batch_size = 4
+        print(type(state["job_search_params"]))
         while counter < state["job_search_params"].limit + 1 and  i < len(found_jobs): 
             print("Processing job: ", i)
-            response = completion(
+            messages = [check_job_match(state["job_search_params"], job["title"], job["company"], job["location"], job["job_description"]) for job in found_jobs[i:i+batch_size]]
+            responses = batch_completion(
                 model= self.model_name,
-                messages=check_job_match(str(state["job_search_params"]), found_jobs[i]["title"], found_jobs[i]["company"], found_jobs[i]["location"], found_jobs[i]["job_description"]),
+                messages=messages,
                 response_format=JobMatch,
             )
-            json_content = response.choices[0].message.content
-            result = JobMatch.parse_raw(json_content)
-
-            print("Match score: ", result.match_score, found_jobs[i]["title"])
-
-            score_answer[str(result.match_score)].append((found_jobs[i], result))
-            if result.match_score > 3:
-                counter += 1
-            i += 1
-        
+            for res in responses:
+                json_content = res.choices[0].message.content
+                result = JobMatch.parse_raw(json_content)
+                print(result)
+                score_answer[str(result.match_score)].append((found_jobs[i], result))
+                if result.match_score > 3:
+                    counter += 1
+                i += 1
         answer = f"""### 🔍 Here are the list of jobs I found based on your preferences:\n"""
         if len(score_answer["5"]) == 0 and len(score_answer["4"]) == 0:
             answer = f"### 🔍  I couldn't find a good job match for you. Here are a list of moderate job fits:\n"

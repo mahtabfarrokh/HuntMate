@@ -1,5 +1,6 @@
 from typing import List
 
+from models import JobSearchParams
 
 def fill_job_preferences(user_input) -> List[dict]: 
     messages = [
@@ -37,16 +38,28 @@ def fill_job_preferences(user_input) -> List[dict]:
     return messages
 
 
-def check_job_match(user_input, title, company, location, job_description) -> List[dict]:
+def check_job_match(user_input: JobSearchParams, title:str, company:str, location:str, job_description:str) -> List[dict]:
+    if user_input.work_mode == [] or len(user_input.work_mode) == 3:
+        workmode = "hybrid, remote, or on-site, all works."
+    else:
+        workmode = "Only the following work modes are acceptable: "
+        for i in user_input.work_mode:
+            workmode += i.name + " "
+    if user_input.experience == []:
+        experience = "all experience levels are acceptable."
+    else:
+        experience = "Only the following experience levels are acceptable: "
+        for i in user_input.experience:
+            experience += i.name + " "
     messages = [
         {"role": "system",  "content": """  
                 Fill the provided pydantic schema with the user's input and the job description.
                 For the `match_score`, give a score based on the following ruberic: 
-                - 5 (Perfect Match): The job aligns with all essential preferences: at least one keyword, location, remote type, experience level, and job type. Extra preferences (if provided) are also met.
+                - 5 (Perfect Match): The job aligns with all essential preferences: at least one keyword, location, remote type (work mode), experience level. Extra preferences (if provided) are also met.
                 - 4 (Strong Match): The job matches most preferences including at least one keyword (at least 4/5 categories). Extra preferences are partially met or moderately aligned.
                 - 3 (Moderate Match): The job meets at least 3/5 essential categories. It may have minor misalignment (e.g., remote flexibility or experience level mismatch). Extra preferences are partially considered.
                 - 2 (Weak Match): The job meets only 2/5 essential categories. It may have significant mismatches, such as incorrect location or experience level. Extra preferences are not met.
-                - 1 (Poor Match): The job meets only 1/5 or none of the user's preferences. Major mismatches (e.g., wrong job type, wrong experience level, incorrect location) result in this score.
+                - 1 (Poor Match): The job meets only 1/5 or none of the user's preferences. Major mismatches (e.g., keyword mismatch, wrong experience level, incorrect location) result in this score.
                 
                 Additional Considerations:
                 If extra_preferences are marked as "important," missing them should lower the score by 1-2 points.
@@ -58,12 +71,20 @@ def check_job_match(user_input, title, company, location, job_description) -> Li
 
                 Provide a brief justification for the score under `reasonning`.
                 """},
+
         {"role": "user", "content": f"""
-                ### User Preference: {user_input} 
-                ### Job Title: {title}
-                ### Company: {company}
-                ### Location: {location}
-                ### Job Description: {job_description}""" }
+                # User Preference: 
+                - Keywords: {str(user_input.job_keywords)}
+                - Acceptable Job Locations: {str(user_input.locations)}
+                - Work Mode: {workmode}
+                - Experience: {str(user_input.experience)}
+                - Extra Preferences: {str(user_input.extra_preferences)} 
+                ----------------------------------------------
+                # About the job:
+                - Job Title: {title}
+                - Company: {company}
+                - Location: {location}
+                - Job Description: {job_description}""" }
     ]
     return messages
 
