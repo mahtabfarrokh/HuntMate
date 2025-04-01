@@ -113,7 +113,7 @@ if prompt := st.chat_input("Ask me anything"):
     st.session_state.messages.append({"role": "user", "content": prompt})
 
     # Get response from HuntMate
-    response = chatbot.run(prompt, skip_router=True, filled_job_form=False)
+    response = chatbot.run(prompt, skip_router=False, filled_job_form=False)
 
     if response == "show_form": 
         # Define the questions and fields

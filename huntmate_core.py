@@ -14,7 +14,6 @@ from models import JobMatch, Route, State, JobSearchParams
 
 
 
-# TODO: Handle long term memory langgraph
 # TODO: check how would open-source LLMs work with the current implementation
 # TODO: make suggestions on how to improve the resume based on the job description
 # TODO: if the llm model is not correct prompt the user to provide the correct model name
@@ -22,6 +21,8 @@ from models import JobMatch, Route, State, JobSearchParams
 # TODO: Add logo and improve the UI
 # TODO: find a way around project setup for users with no experience in python
 # TODO: Add new chat button to reset the memory
+# TODO: Add prompts for craft email, cover letter.. 
+
 
 
 # The main class for the HuntMate application
@@ -54,9 +55,9 @@ class HuntMate:
     
     def main_task_router(self, state: State) -> dict:
         """Route the input to the appropriate node"""
-        print("In the router")
+        print("In the router", state["skip_router"])
         if state["skip_router"]:
-            decision = Route(step="job_search")
+            return {"route_decision": "job_search"}
         else:
             response = completion(
                 model= self.model_name,
@@ -64,9 +65,18 @@ class HuntMate:
                 response_format=Route,
             )
             json_content = response.choices[0].message.content
-            decision = JobSearchParams.parse_raw(json_content)
-            print("The type of the query is: ", decision)
-        return {"route_decision": decision.step}
+            decision = Route.parse_raw(json_content)
+
+            if decision.information_to_memorize: 
+                info = state.get("information_to_memorize", []) + [decision.information_to_memorize]
+            else: 
+                info = state.get("information_to_memorize", [])
+            print(">>>>>>>>>>>>>>>>>>>>>>>>")
+            print("Memory: ", info)
+            print("route_decision: ", decision.step)
+            print(">>>>>>>>>>>>>>>>>>>>>>>>")
+
+            return {"route_decision": decision.step, "information_to_memorize": info}
     
     def route_decision(self, state: State) -> str:
         """Conditional edge function to route to the appropriate node"""
@@ -83,7 +93,7 @@ class HuntMate:
                 "job_search": "process_job_search_params",
                 "unsupported_task": "unsupported_task"
             }
-        return route_map.get(state["route_decision"], "craft_email")
+        return route_map.get(state["route_decision"], "unsupported_task")
         
     def craft_email(self, state: State) -> dict:
         # TODO: Attach this to a llm call 
@@ -96,18 +106,15 @@ class HuntMate:
     def collect_job_search_preferences(self, state: State) -> dict:
         """Prompts the user to populate all required fields for the job search"""
         print(">>>>> In collect_job_search_preferences")
-        # response = completion(
-        #     model= self.model_name,
-        #     messages=fill_job_preferences(state["user_input"]),
-        #     response_format=JobSearchParams,
-        # )
-        # json_content = response.choices[0].message.content
-        # result = JobSearchParams.parse_raw(json_content)
-        # if result.limit < 1:
-        #     result.limit = 1
-        # if result.limit > 50: 
-        #     result.limit = 50
-        result = JobSearchParams(job_keywords=["Machine Learning"], locations=["United States"], work_mode=[], experience=[], job_type=[], limit=20, extra_preferences="I am looking for machine learning jobs in healthcare domain. Exmples: cancer prognosis, medical imaging, survival analysis, etc.")
+        response = completion(
+            model= self.model_name,
+            messages=fill_job_preferences(state["user_input"]),
+            response_format=JobSearchParams,
+        )
+        json_content = response.choices[0].message.content
+        result = JobSearchParams.parse_raw(json_content)
+        result.limit = max(1, min(result.limit, 50))
+        # result = JobSearchParams(job_keywords=["Machine Learning"], locations=["United States"], work_mode=[], experience=[], job_type=[], limit=20, extra_preferences="I am looking for machine learning jobs in healthcare domain. Exmples: cancer prognosis, medical imaging, survival analysis, etc.")
         st.session_state.form_prefill = result
         return {"job_search_params": result, "final_response": "show_form"}
 
@@ -143,7 +150,7 @@ class HuntMate:
         print(type(state["job_search_params"]))
         while counter < state["job_search_params"].limit + 1 and  i < len(found_jobs): 
             print("Processing job: ", i)
-            messages = [check_job_match(state["job_search_params"], job["title"], job["company"], job["location"], job["job_description"]) for job in found_jobs[i:i+batch_size]]
+            messages = [check_job_match(state["job_search_params"], job["title"], job["company"], job["location"], job["job_description"], state.get("information_to_memorize", [])) for job in found_jobs[i:i+batch_size]]
             responses = batch_completion(
                 model= self.model_name,
                 messages=messages,
