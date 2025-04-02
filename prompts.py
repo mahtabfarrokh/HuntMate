@@ -118,7 +118,7 @@ def check_job_match(user_input: JobSearchParams, title:str, company:str, locatio
     return messages
 
 
-def router_prompt(user_input) -> List[dict]:
+def router_prompt(user_input:str) -> List[dict]:
     messages = [
         {"role": "system", "content": """
                 Route the user's input to the correct function based on intent. 
@@ -140,4 +140,40 @@ def router_prompt(user_input) -> List[dict]:
     ]
     return messages
 
-
+def craft_coverletter_prompt(user_input: str, memory_info: List[str], title:str, company:str, job_description:str) -> List[dict]:
+    recent_memory = ""
+    if memory_info:
+        for i in memory_info[-10:]:
+            recent_memory += memory_info[i] + ", "
+    else: 
+        recent_memory = "No info available."
+    
+    messages = [
+        {"role": "system", "content": """
+                Craft a cover letter based on the job description and user input. 
+                The cover letter should be personalized to the job and the user's preferences.
+                
+                ### Additional Considerations:
+                - **User Preferences:** Incorporate the user's general preferences and constraints into the cover letter.
+                - **Job Description:** Highlight relevant skills and experiences that match the job requirements.
+                - **Memory Information:** If there are any recent memory items, consider incorporating them into the cover letter.
+                - **Professional Tone:** Maintain a professional tone throughout the cover letter.
+                - **Customization:** Ensure the cover letter is customized to the specific job and user.
+                
+                ### Example:
+                # User Input: I'm looking for a remote job in data science in the United States.
+                # Job Description: Data Scientist at XYZ Corp.
+                # Memory Information: User prefers remote jobs.
+                """},
+        {"role": "user", "content": f"""
+                # User Preference: 
+                - User Input: {user_input}
+                - General Information About the User in Memory: {str(recent_memory)}
+                ----------------------------------------------
+                # About the job:
+                - Job Title: {title}
+                - Company: {company}
+                - Job Description: {job_description}
+                """ }
+    ]
+    return messages

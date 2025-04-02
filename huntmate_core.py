@@ -9,7 +9,7 @@ import os
 
 
 from tools.linkedin_search import LinkedinSearchTool, JobSearchParams
-from prompts import fill_job_preferences, check_job_match, router_prompt
+from prompts import fill_job_preferences, check_job_match, router_prompt, craft_coverletter_prompt
 from models import JobMatch, Route, State, JobSearchParams
 
 
@@ -99,9 +99,21 @@ class HuntMate:
         # TODO: Attach this to a llm call 
         return {"final_response": "Email crafted"}
     
+    def find_exact_job(self, state: State) -> dict:
+        """Find the exact job the user is selecting based on the user's input"""
+        # TODO: Fix this!!!
+        return {"final_response": "Job found"}
+        
     def craft_coverletter(self, state: State) -> dict:
-        # TODO: Attach this to a llm call
-        return {"final_response": "Cover letter crafted"}
+        """Generate a cover letter based on user input and memory"""
+        # TODO: connect to the find exact job function and give the job info here!
+        response = completion(
+            model=self.model_name,
+            messages=craft_coverletter_prompt(state["user_input"], state.get("information_to_memorize", [])),
+            response_format=str,  # Assuming the response is a plain string
+        )
+        cover_letter = response.choices[0].message.content
+        return {"final_response": cover_letter}
 
     def collect_job_search_preferences(self, state: State) -> dict:
         """Prompts the user to populate all required fields for the job search"""
