@@ -48,17 +48,20 @@ if st.session_state.show_job_form:
         
         remote = st.multiselect(
             "Please provide your preference for work mode:", 
-            options=["On-site", "Remote", "Hybrid"]
+            options=["Onsite", "Remote", "Hybrid"],
+            default=[i.name.lower().replace("_", "").capitalize() for i in getattr(st.session_state.form_prefill, "work_mode", [])]
         )
-        
+
         experience = st.multiselect(
-            "Please provide your preference for experience:", 
-            options=["internship", "entry-level", "associate", "mid-senior-level", "director", "executive"]
+            "Please provide your preference for experience level:", 
+            options=["Internship", "Entry level", "Associate", "Mid senior level", "Director", "Executive"],
+            default=[i.name.lower().replace("_", " ").capitalize() for i in getattr(st.session_state.form_prefill, "experience", [])]
         )
         
         job_type = st.multiselect(
             "Please provide your preference for job type:", 
-            options=["full-time", "contract", "part-time", "temporary", "internship", "volunteer", "other"]
+            options=["Full-time", "Contract", "Part-time", "Temporary", "Internship", "Volunteer", "Other"],
+            default=[i for i in getattr(st.session_state.form_prefill, "job_type", [])]
         )
         locations = st.text_input(
             "Please provide your preference for location:", 
@@ -68,11 +71,11 @@ if st.session_state.show_job_form:
         job_keywords = st.text_input("Please provide your preference for job keywords:", 
                                      value=", ".join(getattr(st.session_state.form_prefill, "job_keywords", [])))
         
-        other_preferences = st.text_area("Please describe any other preferences you have for the job search:")
+        other_preferences = st.text_area("Please describe any other preferences you have for the job search:",
+                                         value= getattr(st.session_state.form_prefill, "extra_preferences", ""))
         
         submit_button = st.form_submit_button("Submit")
         
-
         
         if submit_button:
             # Compile all inputs into an explanation string
@@ -89,8 +92,6 @@ if st.session_state.show_job_form:
             # Process the form with your function
             with st.spinner("Processing your job preferences, this will take a while, please be patient."):
                 # Call your function with the explanation
-
-                
                 response = chatbot.run(explanation, skip_router=True, filled_job_form=True)
                 
                 # Display result in the chat

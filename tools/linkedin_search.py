@@ -42,13 +42,16 @@ class LinkedinSearchTool:
             seen_jobs = set(pd.read_csv("./db/seen_jobs.csv")["job_id"])
 
         print("Searching for jobs on LinkedIn")
+        final_limit = search_params.limit + 5
+        if len(search_params.job_keywords) == 1 and len(search_params.locations) == 1:
+            final_limit = search_params.limit + 20 # Add extra jobs to account for duplicates or wrong matches
 
         for keyword in search_params.job_keywords[:MAX_SEARCH_ITEMS]: 
             for location in search_params.locations[:MAX_SEARCH_ITEMS]:
                 input_search = {
                     "keywords": keyword,
                     "location": location,
-                    "limit": search_params.limit ,  # Add extra jobs to account for duplicates or wrong matches
+                    "limit": final_limit,  
                     "remote": [remote.value for remote in search_params.work_mode],
                     "experience": [experience.value for experience in search_params.experience],
                     "job_type": [job_type[0].upper() for job_type in search_params.job_type],

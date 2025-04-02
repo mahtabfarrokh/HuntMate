@@ -114,8 +114,9 @@ class HuntMate:
         json_content = response.choices[0].message.content
         result = JobSearchParams.parse_raw(json_content)
         result.limit = max(1, min(result.limit, 50))
-        # result = JobSearchParams(job_keywords=["Machine Learning"], locations=["United States"], work_mode=[], experience=[], job_type=[], limit=20, extra_preferences="I am looking for machine learning jobs in healthcare domain. Exmples: cancer prognosis, medical imaging, survival analysis, etc.")
         st.session_state.form_prefill = result
+        print("Prefill the form:")
+        print(result)
         return {"job_search_params": result, "final_response": "show_form"}
 
     def process_job_search_params(self, state: State) -> dict:
