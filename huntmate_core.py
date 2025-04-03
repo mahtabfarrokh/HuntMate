@@ -3,6 +3,7 @@ from langgraph.graph import StateGraph, START, END
 from IPython.display import Image, display
 from litellm import batch_completion, completion
 import streamlit as st
+import pandas as pd
 import configparser
 import shutil
 import os
@@ -11,6 +12,7 @@ import os
 from tools.linkedin_search import LinkedinSearchTool, JobSearchParams
 from prompts import fill_job_preferences, check_job_match, router_prompt, craft_coverletter_prompt
 from models import JobMatch, Route, State, JobSearchParams
+
 
 
 
@@ -49,9 +51,22 @@ class HuntMate:
         """Clean the cache before running the application"""
         if os.path.exists("./tools/__pycache__"):
             shutil.rmtree("./tools/__pycache__")
-        if os.path.exists("./db/seen_jobs.csv"):
-            os.remove("./db/seen_jobs.csv")
-        return
+        if os.path.exists("db"):
+            for file in os.listdir("db"):
+                file_path = os.path.join("db", file)
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
+        # Ensure the db directory exists
+        os.makedirs("db", exist_ok=True)
+
+    def load_personal_memory(self, state) -> list[str]: 
+        """Load the memory from the user_info_memory.csv file"""
+        if os.path.exists("db/user_info_memory.csv"):
+            df = pd.read_csv("db/user_info_memory.csv")
+            if not df.empty:
+                return df["Information"].tolist().extend(state.get("information_to_memorize", []))
+        return state.get("information_to_memorize", [])
+
     
     def main_task_router(self, state: State) -> dict:
         """Route the input to the appropriate node"""
@@ -109,7 +124,7 @@ class HuntMate:
         # TODO: connect to the find exact job function and give the job info here!
         response = completion(
             model=self.model_name,
-            messages=craft_coverletter_prompt(state["user_input"], state.get("information_to_memorize", [])),
+            messages=craft_coverletter_prompt(state["user_input"], self.load_personal_memory(state)),
             response_format=str,  # Assuming the response is a plain string
         )
         cover_letter = response.choices[0].message.content
@@ -163,7 +178,7 @@ class HuntMate:
         print(type(state["job_search_params"]))
         while counter < state["job_search_params"].limit + 1 and  i < len(found_jobs): 
             print("Processing job: ", i)
-            messages = [check_job_match(state["job_search_params"], job["title"], job["company"], job["location"], job["job_description"], state.get("information_to_memorize", [])) for job in found_jobs[i:i+batch_size]]
+            messages = [check_job_match(state["job_search_params"], job["title"], job["company"], job["location"], job["job_description"], self.load_personal_memory(state)) for job in found_jobs[i:i+batch_size]]
             responses = batch_completion(
                 model= self.model_name,
                 messages=messages,
@@ -195,6 +210,38 @@ class HuntMate:
         """Return a response for an unsupported task"""
         return {"final_response": "I'm sorry, I can't help with that. If you believe JobMate should be able to help with this, please let us know by raising an issue in our Git repo."}
     
+    def update_memory(self, state: State) -> None:
+        """Save memory and chat history to CSV files."""
+        # Save important information about the user preferences to user_info_memory.csv
+        user_info_memory_path = "db/user_info_memory.csv"
+
+        if len(state.get("information_to_memorize", [])) > 0:
+            # Load existing data if the file exists
+            if os.path.exists(user_info_memory_path):
+                existing_data = pd.read_csv(user_info_memory_path)
+            else:
+                existing_data = pd.DataFrame(columns=["Information"])
+
+            new_data = pd.DataFrame(state["information_to_memorize"], columns=["Information"])
+            updated_data = pd.concat([existing_data, new_data], ignore_index=True)
+            updated_data.to_csv(user_info_memory_path, index=False)
+
+        # Save user_input and final_response to chat_history.csv
+        chat_history_path = "db/chat_history.csv"
+        new_data = pd.DataFrame([{
+            "User Input": state.get("user_input", ""),
+            "Final Response": state.get("final_response", "")
+        }])
+
+        if os.path.exists(chat_history_path):
+            existing_data = pd.read_csv(chat_history_path)
+        else:
+            existing_data = pd.DataFrame(columns=["User Input", "Final Response"])
+
+        updated_data = pd.concat([existing_data, new_data], ignore_index=True)
+        updated_data.to_csv(chat_history_path, index=False)
+
+            
     def create_workflow(self) -> None:
         """Create the workflow for the HuntMate application"""
 
@@ -208,6 +255,7 @@ class HuntMate:
         self.workflow.add_node("collect_job_search_preferences", self.collect_job_search_preferences)
         self.workflow.add_node("process_job_search_params", self.process_job_search_params)
         self.workflow.add_node("find_related_jobs", self.find_related_jobs)
+        self.workflow.add_node("update_memory", self.update_memory)
 
         # Add edges
         self.workflow.add_edge(START, "main_task_router")
@@ -222,12 +270,13 @@ class HuntMate:
                 "unsupported_task": "unsupported_task"
             },
         )
-        self.workflow.add_edge("craft_email", END)
-        self.workflow.add_edge("craft_coverletter", END)
-        self.workflow.add_edge("collect_job_search_preferences", END)
+        self.workflow.add_edge("craft_email", "update_memory")
+        self.workflow.add_edge("craft_coverletter", "update_memory")
+        self.workflow.add_edge("collect_job_search_preferences", "update_memory")
         self.workflow.add_edge("process_job_search_params", "find_related_jobs")
-        self.workflow.add_edge("find_related_jobs", END)
-        self.workflow.add_edge("unsupported_task", END)
+        self.workflow.add_edge("find_related_jobs", "update_memory")
+        self.workflow.add_edge("unsupported_task", "update_memory")
+        self.workflow.add_edge("update_memory", END)
 
         self.workflow = self.workflow.compile()   
         # with open("diagram.png", "wb") as f:
