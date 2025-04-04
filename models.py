@@ -4,6 +4,11 @@ from typing import List, Literal
 from enum import Enum
 
 
+# For chain of thought
+class Step(BaseModel):
+    explanation: str
+    output: str
+
 # Enum for remote job types
 class WorkMode(Enum):
     ON_SITE = "1"
@@ -23,6 +28,7 @@ class ExperienceLevel(Enum):
 
 # Shema for filling the job search parameters
 class JobSearchParams(BaseModel):
+    steps: list[Step]
     job_keywords: List[str] = Field(description="Main essential keywords for the job search")
     locations: List[str] = Field(description="Locations for the job search, has to be city or country names")
     work_mode: List[WorkMode] = Field(description="Work mode options are on-site, remote, or hybrid")
@@ -35,7 +41,8 @@ class JobSearchParams(BaseModel):
 
 # Schema for structured output to use as routing logic
 class Route(BaseModel):
-    step: Literal["craft_email", "craft_coverletter", "job_search", "unsupported_task", "extract_and_memorize"] = Field(
+    steps: list[Step]
+    route: Literal["craft_email", "craft_coverletter", "job_search", "unsupported_task", "extract_and_memorize"] = Field(
         None, description="The next step in the routing process"
     )
     information_to_memorize: str = Field(
@@ -59,3 +66,7 @@ class JobMatch(BaseModel):
     reasonning: str = Field(description="One sentence reasonning for the choice of match_score.")
     job_summary: str = Field(description="Summary of the job in 50 words.")
 
+
+class JobUserMention(BaseModel): 
+    steps: list[Step]
+    description: str = Field(description="Description of the job.")

@@ -5,20 +5,6 @@ import os
 from huntmate_core import HuntMate
 
 
-if not os.path.exists("./api.cfg"):
-    st.error("Please create an `api.cfg` file with your keys, for an example see `api.cfg.example`.")
-    st.stop()
-
-parser = argparse.ArgumentParser()
-parser.add_argument("--model_name", type=str, default="gpt-4o-mini", help="The name of the model to use.")
-args = parser.parse_args()
-
-chatbot = HuntMate(model_name=args.model_name)
-
-st.title("Welcome to HuntMate!")
-st.write("I am your companion in job hunting! :)")
-st.write("You can start by saying 'Find me a job' or ask me anything about job search.")
-
 # Initialize chat history
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -28,6 +14,22 @@ if "show_job_form" not in st.session_state:
 
 if "form_prefill" not in st.session_state:
     st.session_state.form_prefill = None
+    
+if "chatbot" not in st.session_state:
+    if not os.path.exists("./api.cfg"):
+        st.error("Please create an `api.cfg` file with your keys, for an example see `api.cfg.example`.")
+        st.stop()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model_name", type=str, default="gpt-4o-mini", help="The name of the model to use.")
+    args = parser.parse_args()
+    st.session_state.chatbot = HuntMate(model_name=args.model_name)
+
+chatbot = st.session_state.chatbot
+
+
+st.title("Welcome to HuntMate!")
+st.write("I am your companion in job hunting! :)")
+st.write("You can start by saying 'Find me a job' or ask me anything about job search.")
 
 # Display chat messages from history on app rerun
 for message in st.session_state.messages:
@@ -76,7 +78,7 @@ if st.session_state.show_job_form:
         
         submit_button = st.form_submit_button("Submit")
         
-        
+
         if submit_button:
             # Compile all inputs into an explanation string
             explanation = ""

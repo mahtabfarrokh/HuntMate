@@ -6,7 +6,7 @@ def fill_job_preferences(user_input) -> List[dict]:
     messages = [
         {"role": "system",
           "content": """
-                Populate the JSON job search parameters based on the user's input. Leave fields empty if not provided.
+                Think step by step and populate the JSON job search parameters based on the user's input. Leave fields empty if not provided.
 
                 ### Additional Considerations:
 
@@ -121,12 +121,13 @@ def check_job_match(user_input: JobSearchParams, title:str, company:str, locatio
 def router_prompt(user_input:str) -> List[dict]:
     messages = [
         {"role": "system", "content": """
-                Route the user's input to the correct function based on intent. 
+                Think step by step and route the user's input to the correct function. 
                 For example, if the user says "job search," route it to the `job_search` function.
 
-                Also extract and record any critical new information that should be persisted in chat history — such as user general preferences or constraints. 
+                Also extract and record any critical new information that should be persisted in chat history — such as user general preferences/constraints/information. 
                 Only include information that is general and reusable across sessions, not input specific to a single task or thread.
                 The key here is that only save the parts of user input that includes "Always," "Never," "Only," "Remember," etc. which indicate a general preference.
+                Also if the user gives a critical personal informations, such as "I am a software engineer," save it in the memory.
 
                 For instance:
                 - If the user says, "Always give me remote jobs in the United States," route to `job_search` and store "Only remote jobs in the United States are accepted."
@@ -134,17 +135,18 @@ def router_prompt(user_input:str) -> List[dict]:
                 
                 Focus on:
                 - Identifying the appropriate function.
-                - Extracting and summarizing reusable user preferences.
+                - Extracting and summarizing reusable user preferences and information.
                 """},
         {"role": "user", "content": f"User: {user_input}"}
     ]
     return messages
 
-def craft_coverletter_prompt(user_input: str, memory_info: List[str], title:str, company:str, job_description:str) -> List[dict]:
+def craft_coverletter_prompt(user_input: str, memory_info: List[str], job_description:str) -> List[dict]:
     recent_memory = ""
     if memory_info:
-        for i in memory_info[-10:]:
-            recent_memory += memory_info[i] + ", "
+        memory_info = memory_info[-10:]
+        for i in range(len(memory_info)):
+            recent_memory += memory_info[i] + ", "  
     else: 
         recent_memory = "No info available."
     
@@ -159,11 +161,7 @@ def craft_coverletter_prompt(user_input: str, memory_info: List[str], title:str,
                 - **Memory Information:** If there are any recent memory items, consider incorporating them into the cover letter.
                 - **Professional Tone:** Maintain a professional tone throughout the cover letter.
                 - **Customization:** Ensure the cover letter is customized to the specific job and user.
-                
-                ### Example:
-                # User Input: I'm looking for a remote job in data science in the United States.
-                # Job Description: Data Scientist at XYZ Corp.
-                # Memory Information: User prefers remote jobs.
+                - **Length:** Keep the cover letter concise, ideally within 3-4 paragraphs.
                 """},
         {"role": "user", "content": f"""
                 # User Preference: 
@@ -171,9 +169,26 @@ def craft_coverletter_prompt(user_input: str, memory_info: List[str], title:str,
                 - General Information About the User in Memory: {str(recent_memory)}
                 ----------------------------------------------
                 # About the job:
-                - Job Title: {title}
-                - Company: {company}
                 - Job Description: {job_description}
                 """ }
     ]
     return messages
+
+
+def find_job_user_mentioned_prompt(user_input: str, chat_history: List[str]) -> List[dict]:
+    chat_history = chat_history[-10:][::-1]  # Limit to the last 10 messages for context and reverse the order
+    messages = [
+        {"role": "system", "content": """
+                Think step by step and check if the the job in user input can be found in the chat history.
+                If the job is found in the chat history, return all the job details.
+                If the job is not found in the chat history, return "No job matched."
+
+                Note: in rare cases you might find mutiple job matches in the chat history, in that case starting from the top of the history return only the first match that you find. 
+                """},
+        {"role": "user", "content": f"""
+                # User Input: {user_input}
+                # Recent Chat History: {str(chat_history)}
+                """ }
+    ]
+    return messages
+    

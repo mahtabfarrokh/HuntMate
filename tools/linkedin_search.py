@@ -31,6 +31,18 @@ class LinkedinSearchTool:
                     return company_name
         return "Unknown"
     
+    def get_job_info(self, job_id: str) -> str:
+        """ Get job information from job id """
+        try:
+            job_details = self.api.get_job(job_id)
+            JD = job_details.get('description', dict()).get('text', 'unknown')
+            if JD == 'unknown':
+                JD = str(job_details)
+            return JD
+        except Exception as e:
+            print(f"Error fetching job {job_id}: {str(e)}")
+            return ""
+        
     def job_search(self, search_params: JobSearchParams) -> List[dict]:
         """ Search for jobs on LinkedIn """
         all_jobs = []
