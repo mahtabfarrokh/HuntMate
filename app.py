@@ -5,6 +5,8 @@ import os
 from huntmate_core import HuntMate
 
 
+st.set_page_config(layout="wide")
+
 # Initialize chat history
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -26,10 +28,19 @@ if "chatbot" not in st.session_state:
 
 chatbot = st.session_state.chatbot
 
+logo_col, spacer_col, main_col = st.columns([1, 0.5,  5])
 
-st.title("Welcome to HuntMate!")
-st.write("I am your companion in job hunting! :)")
-st.write("You can start by saying 'Find me a job' or ask me anything about job search.")
+with logo_col:
+    st.image("images/logo.png", use_container_width=True)
+
+with spacer_col:
+    # empty spacer, no content
+    pass
+
+with main_col:
+    st.title("Welcome to HuntMate!")
+    st.write("I am your companion in job hunting! :)")
+    st.write("You can start by saying 'Find me a job' or ask me anything about job search.")
 
 # Display chat messages from history on app rerun
 for message in st.session_state.messages:
@@ -71,10 +82,10 @@ if st.session_state.show_job_form:
         )
         
         job_keywords = st.text_input("Please provide your preference for job keywords:", 
-                                     value=", ".join(getattr(st.session_state.form_prefill, "job_keywords", [])))
+                                    value=", ".join(getattr(st.session_state.form_prefill, "job_keywords", [])))
         
         other_preferences = st.text_area("Please describe any other preferences you have for the job search:",
-                                         value= getattr(st.session_state.form_prefill, "extra_preferences", ""))
+                                        value= getattr(st.session_state.form_prefill, "extra_preferences", ""))
         
         submit_button = st.form_submit_button("Submit")
         

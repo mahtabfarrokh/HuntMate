@@ -33,6 +33,7 @@ def fill_job_preferences(user_input) -> List[dict]:
 
                 - **Extra Preferences:**  
                     - Any additional details provided by the user should be stored in the `extra_preferences` field.
+                    - Do not include non important details such as "User is looking for a job.", we already know that!
                     
                     
                 ### Example:
@@ -61,14 +62,7 @@ def fill_job_preferences(user_input) -> List[dict]:
     return messages
 
 
-def check_job_match(user_input: JobSearchParams, title:str, company:str, location:str, job_description:str, memory_info: List[str]) -> List[dict]:
-    # user_location_pref = user_input.locations
-    # if user_input.work_mode == [] or len(user_input.work_mode) == 3:
-    #     workmode = "hybrid, remote, or on-site, all works."
-    # else:
-    #     workmode = "Only the following work modes are acceptable: "
-    #     for i in user_input.work_mode:
-    #         workmode += i.name + " "
+def check_job_match(user_input: JobSearchParams, title:str, company:str, job_description:str, memory_info: List[str]) -> List[dict]:
     if user_input.experience == []:
         experience = "all experience levels are acceptable."
     else:

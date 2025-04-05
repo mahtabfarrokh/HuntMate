@@ -21,12 +21,12 @@ from models import JobMatch, Route, State, JobSearchParams, JobUserMention
 # TODO: make suggestions on how to improve the resume based on the job description
 # TODO: if the llm model is not correct prompt the user to provide the correct model name
 # TODO: is there a way around this pydantic/json formatting for open-source llms? 
-# TODO: Add logo and improve the UI
-# TODO: find a way around project setup for users with no experience in python
+# TODO: find a way around project setup for users with no experience in python > Docker maybe? 
 # TODO: Add new chat button to reset the memory
-# TODO: Add prompts for craft email, cover letter.. 
+# TODO: Add prompts for craft email. 
 # TODO: improve the memory from csv file to a better solution
-
+# TODO: change unsupported task to a more user-friendly message or just let openai handle it?
+# TODO: you can have a place that the user can upload their resume!
 
 
 # The main class for the HuntMate application
@@ -135,23 +135,19 @@ class HuntMate:
         else:
             try: 
                 job_id = result.description.split("https://www.linkedin.com/jobs/view/")[1].split(")")[0]
-                result = self.linkedin_tool.get_job_info(job_id)
-                if result :
-                    return result
+                complete_info = self.linkedin_tool.get_job_info(job_id)
+                if complete_info:
+                    return complete_info
                 else: 
-                    return state["user_input"]
+                    return result.description
             except:
                 return state["user_input"]
 
         
     def craft_coverletter(self, state: State) -> dict:
         """Generate a cover letter based on user input and memory"""
-        # TODO: connect to the find exact job function and give the job info here!
         job_description = self.find_exact_job(state)
         memory_personal = self.load_personal_memory(state)
-        print(">>>>>>>>>>>>>>>")
-        print(job_description)
-        print(">>>>>>>>>>>>>>>")
         response = completion(
             model=self.model_name,
             messages=craft_coverletter_prompt(state["user_input"], memory_personal, job_description),
@@ -208,7 +204,7 @@ class HuntMate:
         print(type(state["job_search_params"]))
         while counter < state["job_search_params"].limit + 1 and  i < len(found_jobs): 
             print("Processing job: ", i)
-            messages = [check_job_match(state["job_search_params"], job["title"], job["company"], job["location"], job["job_description"], self.load_personal_memory(state)) for job in found_jobs[i:i+batch_size]]
+            messages = [check_job_match(state["job_search_params"], job["title"], job["company"], job["job_description"], self.load_personal_memory(state)) for job in found_jobs[i:i+batch_size]]
             responses = batch_completion(
                 model= self.model_name,
                 messages=messages,
@@ -242,9 +238,7 @@ class HuntMate:
     
     def update_memory(self, state: State) -> None:
         """Save memory and chat history to CSV files."""
-        # Save important information about the user preferences to user_info_memory.csv
         user_info_memory_path = "db/user_info_memory.csv"
-
         if len(state.get("information_to_memorize", [])) > 0:
             # Load existing data if the file exists
             if os.path.exists(user_info_memory_path):
@@ -269,6 +263,12 @@ class HuntMate:
         updated_data = pd.concat([existing_data, new_data], ignore_index=True)
         updated_data.to_csv(chat_history_path, index=False)
 
+    def save_diagram(self, path) -> None:
+        with open(path, "wb") as f:
+            f.write(
+            self.workflow.get_graph().draw_mermaid_png(
+                draw_method=MermaidDrawMethod.API,
+        ))
             
     def create_workflow(self) -> None:
         """Create the workflow for the HuntMate application"""
@@ -307,12 +307,8 @@ class HuntMate:
         self.workflow.add_edge("update_memory", END)
 
         self.workflow = self.workflow.compile()   
-        # with open("diagram.png", "wb") as f:
-        #     f.write(
-        #     self.workflow.get_graph().draw_mermaid_png(
-        #         draw_method=MermaidDrawMethod.API,
-        #     )
-        #     )
+
+        # self.save_diagram("./images/diagram.png")
         return 
 
     def run(self, user_input: str, skip_router: bool = True, filled_job_form: bool = False) -> str:
