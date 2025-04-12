@@ -7,7 +7,7 @@ import logging
 import random
 import uuid
 import re
-import requests
+import logging
 from operator import itemgetter
 from time import sleep
 from urllib.parse import urlencode, quote
@@ -640,8 +640,7 @@ class Linkedin(object):
             location_name = location_name.split(" ")
             location_name = "%20".join(location_name)
             geo_id = self.get_geo_id(location_name)
-            print(">>>>>>>>>>>>>>>>>")
-            print("Found it: geo_id", geo_id)
+            self.logger.info("Found geo_id: %s", geo_id)
 
             query["locationUnion"]["geoId"] = geo_id 
       
@@ -680,8 +679,6 @@ class Linkedin(object):
         #    ),
         #    spellCorrectionEnabled:true
         #  )"
-
-
         
         query_string = (
             str(query)
@@ -694,7 +691,6 @@ class Linkedin(object):
         results = []
         while True:
             # when we're close to the limit, only fetch what we need to
-            print(query_string)
             if limit > -1 and limit - len(results) < count:
                 count = limit - len(results)
             default_params = {

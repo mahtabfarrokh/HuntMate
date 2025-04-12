@@ -6,7 +6,9 @@ from typing import List
 import streamlit as st
 import pandas as pd
 import configparser
+import logging
 import shutil
+import json
 import os
 
 
@@ -15,25 +17,13 @@ from prompts import fill_job_preferences, check_job_match, router_prompt, craft_
 from models import JobMatch, Route, State, JobSearchParams, JobUserMention
 
 
-
-
-# TODO: check how would open-source LLMs work with the current implementation
-# TODO: make suggestions on how to improve the resume based on the job description
-# TODO: if the llm model is not correct prompt the user to provide the correct model name
-# TODO: is there a way around this pydantic/json formatting for open-source llms? 
-# TODO: find a way around project setup for users with no experience in python > Docker maybe? 
-# TODO: Add new chat button to reset the memory
-# TODO: Add prompts for craft email. 
-# TODO: improve the memory from csv file to a better solution
-# TODO: change unsupported task to a more user-friendly message or just let openai handle it?
-# TODO: you can have a place that the user can upload their resume!
-
+logger = logging.getLogger(__name__)
 
 # The main class for the HuntMate application
 class HuntMate:
     def __init__(self, model_name: str = "gpt-4o-mini") -> None: 
         """Initialize the HuntMate application"""
-        print("HERE in INIT")
+        logger.info("Initializing HuntMate")
         self.clean_cache()
         config = configparser.ConfigParser()
         config.read('./api.cfg')
@@ -67,13 +57,13 @@ class HuntMate:
         if os.path.exists("db/user_info_memory.csv"):
             df = pd.read_csv("db/user_info_memory.csv")
             if not df.empty:
-                return df["Information"].tolist().extend(state.get("information_to_memorize", []))
+                return df["Information"].tolist() + state.get("information_to_memorize", [])
         return state.get("information_to_memorize", [])
 
     
     def main_task_router(self, state: State) -> dict:
         """Route the input to the appropriate node"""
-        print("In the router", state["skip_router"])
+        logger.info("In the router %s", state["skip_router"])
         if state["skip_router"]:
             return {"route_decision": "job_search"}
         else:
@@ -89,10 +79,9 @@ class HuntMate:
                 info = state.get("information_to_memorize", []) + [decision.information_to_memorize]
             else: 
                 info = state.get("information_to_memorize", [])
-            print(">>>>>>>>>>>>>>>>>>>>>>>>")
-            print("Memory: ", info)
-            print("route_decision: ", decision.route)
-            print(">>>>>>>>>>>>>>>>>>>>>>>>")
+
+            logger.info("Memory: %s", info)
+            logger.info("route_decision: %s", decision.route)
 
             return {"route_decision": decision.route, "information_to_memorize": info}
     
@@ -158,7 +147,7 @@ class HuntMate:
 
     def collect_job_search_preferences(self, state: State) -> dict:
         """Prompts the user to populate all required fields for the job search"""
-        print(">>>>> In collect_job_search_preferences")
+        logger.info(">>>>> In collect_job_search_preferences")
         response = completion(
             model= self.model_name,
             messages=fill_job_preferences(state["user_input"]),
@@ -168,13 +157,13 @@ class HuntMate:
         result = JobSearchParams.parse_raw(json_content)
         result.limit = max(1, min(result.limit, 50))
         st.session_state.form_prefill = result
-        print("Prefill the form:")
-        print(result)
+        logger.info("Prefill the form:")
+        logger.info("Result:\n%s", json.dumps(result, indent=2))
         return {"job_search_params": result, "final_response": "show_form"}
 
     def process_job_search_params(self, state: State) -> dict:
         """Populate the job search parameters based on the user's input"""
-        print(">>>>> In process_job_search_params")
+        logger.info(">>>>> In process_job_search_params")
         response = completion(
             model= self.model_name,
             messages=fill_job_preferences(state["user_input"]),
@@ -184,8 +173,8 @@ class HuntMate:
         result = JobSearchParams.parse_raw(json_content)
         if result.locations == []:
             result.locations = ["Worldwide"]
-        print(">>>>> Job search params")
-        print(result)
+        logger.info(">>>>> Job search params")
+        logger.info("Result:\n%s", json.dumps(result, indent=2))
         return {"job_search_params": result, "user_input": state["user_input"]}
 
     def job_details_output(self, job: dict, job_match: JobMatch) -> str:
@@ -199,11 +188,10 @@ class HuntMate:
         score_answer = {"1":[], "2":[],"3": [], "4": [], "5": []}
         
         found_jobs = self.linkedin_tool.job_search(state["job_search_params"])
-        print("Found jobs: ", len(found_jobs))
+        logger.info("Found jobs: %s", len(found_jobs))
         batch_size = 4
-        print(type(state["job_search_params"]))
         while counter < state["job_search_params"].limit + 1 and  i < len(found_jobs): 
-            print("Processing job: ", i)
+            logger.info("Processing job: %s", i)
             messages = [check_job_match(state["job_search_params"], job["title"], job["company"], job["job_description"], self.load_personal_memory(state)) for job in found_jobs[i:i+batch_size]]
             responses = batch_completion(
                 model= self.model_name,
@@ -213,7 +201,7 @@ class HuntMate:
             for res in responses:
                 json_content = res.choices[0].message.content
                 result = JobMatch.parse_raw(json_content)
-                print(result)
+                logger.info("Result:\n%s", json.dumps(result, indent=2))
                 score_answer[str(result.match_score)].append((found_jobs[i], result))
                 if result.match_score > 3:
                     counter += 1

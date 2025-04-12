@@ -70,12 +70,7 @@ def check_job_match(user_input: JobSearchParams, title:str, company:str, job_des
         for i in user_input.experience:
             experience += i.name + " "
     
-    recent_memory = ""
-    if memory_info:
-        for i in memory_info[-10:]:
-            recent_memory += memory_info[i] + ", "
-    else: 
-        recent_memory = "No info available."
+    recent_memory = ", ".join(memory_info[-10:]) if memory_info else "No info available."
 
     messages = [
         {"role": "system",  "content": """  
@@ -136,13 +131,9 @@ def router_prompt(user_input:str) -> List[dict]:
     return messages
 
 def craft_coverletter_prompt(user_input: str, memory_info: List[str], job_description:str) -> List[dict]:
-    recent_memory = ""
-    if memory_info:
-        memory_info = memory_info[-10:]
-        for i in range(len(memory_info)):
-            recent_memory += memory_info[i] + ", "  
-    else: 
-        recent_memory = "No info available."
+    """Prompt for generating a cover letter based on user input and job description."""
+    
+    recent_memory = ", ".join(memory_info[-10:]) if memory_info else "No info available."
     
     messages = [
         {"role": "system", "content": """

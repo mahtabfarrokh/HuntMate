@@ -1,8 +1,9 @@
 
-from linkedin_api import Linkedin
+from my_linkedin_api import Linkedin
 from typing import List
 import pandas as pd
 import configparser
+import logging
 import time
 import os
 
@@ -13,6 +14,7 @@ import asyncio
 
 MAX_SEARCH_ITEMS = 5  # Limit for job keywords and locations
 
+logger = logging.getLogger(__name__)
 
 # Tool for searching jobs on LinkedIn using the LinkedIn API
 class LinkedinSearchTool:
@@ -25,6 +27,9 @@ class LinkedinSearchTool:
         """ Get company name from company id """
         company_details = details.get("companyDetails", {})
         for key, value in company_details.items():
+            company_name = value.get("companyName", "")
+            if company_name:
+                return company_name
             for sub_key, sub_value in value.items():
                 company_name = sub_value.get("name")
                 if company_name:
@@ -40,7 +45,7 @@ class LinkedinSearchTool:
                 JD = str(job_details)
             return JD
         except Exception as e:
-            print(f"Error fetching job {job_id}: {str(e)}")
+            logger.error(f"Error fetching job {job_id}: {str(e)}")
             return ""
         
     def job_search(self, search_params: JobSearchParams) -> List[dict]:
@@ -53,16 +58,16 @@ class LinkedinSearchTool:
         else:   
             seen_jobs = set(pd.read_csv("./db/seen_jobs.csv")["job_id"])
 
-        print("Searching for jobs on LinkedIn")
+        logging.info("Searching for jobs on LinkedIn")
         final_limit = search_params.limit + 5
         if len(search_params.job_keywords) == 1 and len(search_params.locations) == 1:
-            final_limit = search_params.limit + 20 # Add extra jobs to account for duplicates or wrong matches
+            final_limit = search_params.limit + 5 # Add extra jobs to account for duplicates or wrong matches
 
         for keyword in search_params.job_keywords[:MAX_SEARCH_ITEMS]: 
             for location in search_params.locations[:MAX_SEARCH_ITEMS]:
                 input_search = {
                     "keywords": keyword,
-                    "location": location,
+                    "location_name": location,
                     "limit": final_limit,  
                     "remote": [remote.value for remote in search_params.work_mode],
                     "experience": [experience.value for experience in search_params.experience],
@@ -70,13 +75,12 @@ class LinkedinSearchTool:
                     "listed_at": 24*60*60*30,  # Jobs listed in the last 30 days
                 }
 
-                print(input_search)
+                logger.info(f"Search parameters: {input_search}")
                 start_time = time.time()
                 try: 
                     jobs = self.api.search_jobs(**input_search)
                 except Exception as e:
-                    print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-                    print(f"Error searching for jobs: {str(e)}")
+                    logger.error(f"Error searching for jobs: {str(e)}")
                     continue
                 
                 async def fetch_job_details(job_id):
@@ -88,7 +92,7 @@ class LinkedinSearchTool:
                                 "details": details
                             }
                         except Exception as e:
-                            print(f"Error fetching job {job_id}: {str(e)}")
+                            logger.error(f"Error fetching job {job_id}: {str(e)}")
                             return None
 
                     return await asyncio.to_thread(blocking_call)
@@ -127,13 +131,12 @@ class LinkedinSearchTool:
                 asyncio.run(process_jobs(jobs))
 
                 end_time = time.time()
-                print(f"Time taken for search: {end_time - start_time} seconds")\
+                logging.info(f"Time taken for search: {end_time - start_time} seconds")
 
         seen_jobs_df = pd.DataFrame(seen_jobs, columns=["job_id"])
         seen_jobs_df.to_csv("./db/seen_jobs.csv", index=False)
 
-        print("Finished searching for jobs on LinkedIn")
-        print(len(all_jobs))
+        logging.info("Finished searching for jobs on LinkedIn. Total jobs found: %s", len(all_jobs))
         return all_jobs 
     
 

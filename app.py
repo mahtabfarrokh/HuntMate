@@ -1,5 +1,6 @@
 import streamlit as st
 import argparse
+import logging
 import os
 
 from huntmate_core import HuntMate
@@ -18,6 +19,12 @@ if "form_prefill" not in st.session_state:
     st.session_state.form_prefill = None
     
 if "chatbot" not in st.session_state:
+    logging.basicConfig(
+        filename="huntmate.log",  # or None to only log to console
+        level=logging.INFO,       # change to logging.DEBUG for more detail
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     if not os.path.exists("./api.cfg"):
         st.error("Please create an `api.cfg` file with your keys, for an example see `api.cfg.example`.")
         st.stop()
