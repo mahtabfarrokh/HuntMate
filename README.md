@@ -24,13 +24,22 @@ Here’s an overview of the current LLM agent workflow:
 
 ## Configuration Instructions
 
-#### 1. Set Up a Virtual Environment and Install Dependencies
+#### 1. Install Dependencies using uv
+
+You can install uv (if not already installed) using the following method:
 
 ```bash
-python -m venv env
-source env/bin/activate
-pip install -r requirements.txt 
+pip install uv
 ```
+
+Next, create the virtual environment and install dependencies:
+
+```bash
+uv venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+uv sync
+```
+
 
 #### 2. Config `api.cfg`
 
