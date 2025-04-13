@@ -225,7 +225,10 @@ class HuntMate:
 
         answer = f"""### 🔍 Here are the list of jobs I found based on your preferences:\n"""
         if len(score_answer["5"]) == 0 and len(score_answer["4"]) == 0:
-            answer = f"### 🔍  I couldn't find a good job match for you. Here are a list of moderate job fits:\n"
+            if len(score_answer["3"]) == 0 and len(score_answer["2"]) == 0 and len(score_answer["1"]) == 0:
+                return {"final_response": "I couldn't find any job matches for you. Please try a more general list of job keywords or location. Also increase the limit value to get more jobs."}
+            else:
+                answer = f"### 🔍  I couldn't find a good job match for you. Here are a list of moderate job fits:\n"
 
         counter = 1
         for i in range(5, 0, -1):
