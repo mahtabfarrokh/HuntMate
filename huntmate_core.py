@@ -2,7 +2,7 @@ from langchain_core.runnables.graph import CurveStyle, MermaidDrawMethod, NodeSt
 from langgraph.graph import StateGraph, START, END
 from IPython.display import Image, display
 from litellm import batch_completion, completion
-from typing import List
+from typing import List, Dict, Any
 import streamlit as st
 import pandas as pd
 import configparser
@@ -15,6 +15,7 @@ import os
 from tools.linkedin_search import LinkedinSearchTool, JobSearchParams
 from prompts import fill_job_preferences, check_job_match, router_prompt, craft_coverletter_prompt, find_job_user_mentioned_prompt
 from models import JobMatch, Route, State, JobSearchParams, JobUserMention
+from settings import AppConfig
 
 
 logger = logging.getLogger(__name__)
@@ -44,7 +45,10 @@ class HuntMate:
         """Clean the cache before running the application"""
         if os.path.exists("./tools/__pycache__"):
             shutil.rmtree("./tools/__pycache__")
+        if os.path.exists("./my_linkedin_api/__pycache__"):
+            shutil.rmtree("./my_linkedin_api/__pycache__")
         if os.path.exists("db"):
+            # RESET the memory
             for file in os.listdir("db"):
                 file_path = os.path.join("db", file)
                 if os.path.isfile(file_path):
@@ -61,7 +65,7 @@ class HuntMate:
         return state.get("information_to_memorize", [])
 
     
-    def main_task_router(self, state: State) -> dict:
+    def main_task_router(self, state: State) -> Dict[str, Any]:
         """Route the input to the appropriate node"""
         logger.info("In the router %s", state["skip_router"])
         if state["skip_router"]:
@@ -102,11 +106,11 @@ class HuntMate:
             }
         return route_map.get(state["route_decision"], "unsupported_task")
         
-    def craft_email(self, state: State) -> dict:
+    def craft_email(self, state: State) -> Dict[str, Any]:
         # TODO: Attach this to a llm call 
         return {"final_response": "Email crafted"}
     
-    def find_exact_job(self, state: State) -> dict:
+    def find_exact_job(self, state: State) -> str:
         """Find the exact job the user is selecting based on the user's input and history"""
         chat_history = []
         if os.path.exists("db/chat_history.csv"):
@@ -133,7 +137,7 @@ class HuntMate:
                 return state["user_input"]
 
         
-    def craft_coverletter(self, state: State) -> dict:
+    def craft_coverletter(self, state: State) -> Dict[str, Any]:
         """Generate a cover letter based on user input and memory"""
         job_description = self.find_exact_job(state)
         memory_personal = self.load_personal_memory(state)
@@ -145,7 +149,7 @@ class HuntMate:
         cover_letter = response.choices[0].message.content
         return {"final_response": cover_letter}
 
-    def collect_job_search_preferences(self, state: State) -> dict:
+    def collect_job_search_preferences(self, state: State) -> Dict[str, Any]:
         """Prompts the user to populate all required fields for the job search"""
         logger.info(">>>>> In collect_job_search_preferences")
         response = completion(
@@ -155,13 +159,13 @@ class HuntMate:
         )
         json_content = response.choices[0].message.content
         result = JobSearchParams.parse_raw(json_content)
-        result.limit = max(1, min(result.limit, 50))
+        result.limit = max(AppConfig.MIN_JOBS, min(result.limit, AppConfig.MAX_JOBS))
         st.session_state.form_prefill = result
         logger.info("Prefill the form:")
-        logger.info("Result:\n%s", json.dumps(result, indent=2))
+        logger.info("Result: %s", result.dict())
         return {"job_search_params": result, "final_response": "show_form"}
 
-    def process_job_search_params(self, state: State) -> dict:
+    def process_job_search_params(self, state: State) -> Dict[str, Any]:
         """Populate the job search parameters based on the user's input"""
         logger.info(">>>>> In process_job_search_params")
         response = completion(
@@ -174,7 +178,7 @@ class HuntMate:
         if result.locations == []:
             result.locations = ["Worldwide"]
         logger.info(">>>>> Job search params")
-        logger.info("Result:\n%s", json.dumps(result, indent=2))
+        logger.info("Result:\n%s", result.dict())
         return {"job_search_params": result, "user_input": state["user_input"]}
 
     def job_details_output(self, job: dict, job_match: JobMatch) -> str:
@@ -182,14 +186,26 @@ class HuntMate:
         # TODO: This should be moved to app.py
         return f"""### :briefcase: {job['title']}  \n ###### **Company:** {job['company']}  \n ###### **Match Score:** {job_match.match_score}  \n ###### **Job Summary:** {job_match.job_summary}  \n ###### **Job Reasoning:** {job_match.reasonning}  \n ###### **[🔗 Job Link]({job['job_posting_link']})**  \n---------------------------------\n"""
     
-    def find_related_jobs(self, state: State) -> dict:
+    def basic_keyword_match(self, job: dict, keywords: List[str]) -> bool:
+        """Check if the job title or description contains any of the keywords"""
+        title = job["title"].lower()
+        description = job["job_description"].lower()
+        for keyword in keywords:
+            if keyword.lower() in title or keyword.lower() in description:
+                return True
+        return False
+
+    def find_related_jobs(self, state: State) -> Dict[str, Any]:
         """Find related jobs based on the user's input"""
         counter, i = 1, 0
         score_answer = {"1":[], "2":[],"3": [], "4": [], "5": []}
         
         found_jobs = self.linkedin_tool.job_search(state["job_search_params"])
+        
+        found_jobs = [job for job in found_jobs if self.basic_keyword_match(job, state["job_search_params"].job_keywords)]
+
         logger.info("Found jobs: %s", len(found_jobs))
-        batch_size = 4
+        batch_size = AppConfig.JOB_MATCH_BATCH_SIZE
         while counter < state["job_search_params"].limit + 1 and  i < len(found_jobs): 
             logger.info("Processing job: %s", i)
             messages = [check_job_match(state["job_search_params"], job["title"], job["company"], job["job_description"], self.load_personal_memory(state)) for job in found_jobs[i:i+batch_size]]
@@ -201,11 +217,12 @@ class HuntMate:
             for res in responses:
                 json_content = res.choices[0].message.content
                 result = JobMatch.parse_raw(json_content)
-                logger.info("Result:\n%s", json.dumps(result, indent=2))
+                logger.info("Result:\n%s", result.dict())
                 score_answer[str(result.match_score)].append((found_jobs[i], result))
                 if result.match_score > 3:
                     counter += 1
                 i += 1
+
         answer = f"""### 🔍 Here are the list of jobs I found based on your preferences:\n"""
         if len(score_answer["5"]) == 0 and len(score_answer["4"]) == 0:
             answer = f"### 🔍  I couldn't find a good job match for you. Here are a list of moderate job fits:\n"
@@ -215,12 +232,12 @@ class HuntMate:
             for job, result in score_answer[str(i)]:
                 answer += self.job_details_output(job, result)    
                 counter += 1
-                if counter > state["job_search_params"].limit + 5:
+                if counter > state["job_search_params"].limit + AppConfig.EXTRA_JOBS_TO_SEARCH_LOWER:
                     return {"final_response": answer}
                 
         return {"final_response": answer}
 
-    def unsupported_task(self, state: State) -> dict:
+    def unsupported_task(self, state: State) -> Dict[str, Any]:
         """Return a response for an unsupported task"""
         return {"final_response": "I'm sorry, I can't help with that. If you believe Hunt Mate should be able to help with this, please let us know by raising an issue in our Git repo."}
     

@@ -3,6 +3,8 @@ from pydantic import BaseModel, Field
 from typing import List, Literal
 from enum import Enum
 
+from settings import AppConfig
+
 
 # For chain of thought
 class Step(BaseModel):
@@ -34,7 +36,7 @@ class JobSearchParams(BaseModel):
     work_mode: List[WorkMode] = Field(description="Work mode options are on-site, remote, or hybrid")
     experience: List[ExperienceLevel] = Field(description="Experience levels")
     job_type: List[Literal["Full-time", "Contract", "Part-time", "Temporary", "Internship", "Volunteer", "Other"]] = Field(description="Types of jobs")
-    limit: int = Field(description="Limit on the number of jobs to return")
+    limit: int = Field(default= AppConfig.DEFAULT_LIMIT, description="Limit on the number of jobs to return")
     extra_preferences: str = Field(description="Extra preferences for the job search.")
 
 

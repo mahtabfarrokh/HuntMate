@@ -70,7 +70,7 @@ def check_job_match(user_input: JobSearchParams, title:str, company:str, job_des
         for i in user_input.experience:
             experience += i.name + " "
     
-    recent_memory = ", ".join(memory_info[-10:]) if memory_info else "No info available."
+    recent_memory = ", ".join(memory_info[-10:]) if memory_info else "None"
 
     messages = [
         {"role": "system",  "content": """  
@@ -84,8 +84,7 @@ def check_job_match(user_input: JobSearchParams, title:str, company:str, job_des
                 
                 Additional Considerations:
                 If extra_preferences are marked as "important," missing them should lower the score by 1-2 points.
-                A job lacking any of the keywords should not score higher than 2.
-             
+               
                 Note: It's perfectly fine if the job title doesn't exactly match the keyword, as long as the keyword is mentioned in the job description.
                 For example: if the keyword is "machine learning" but the job title is "Data Scientist" and the description includes machine learning tasks, that's still a valid match.
 
@@ -133,7 +132,7 @@ def router_prompt(user_input:str) -> List[dict]:
 def craft_coverletter_prompt(user_input: str, memory_info: List[str], job_description:str) -> List[dict]:
     """Prompt for generating a cover letter based on user input and job description."""
     
-    recent_memory = ", ".join(memory_info[-10:]) if memory_info else "No info available."
+    recent_memory = ", ".join(memory_info[-10:]) if memory_info else "None"
     
     messages = [
         {"role": "system", "content": """

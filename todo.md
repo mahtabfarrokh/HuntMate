@@ -4,7 +4,7 @@
 - Task 1: Add Indeed Scrapping to the pipeline
 - Task 2: Add prompts for craft email.
 - Task 3: Change unsupported task to a more user-friendly message or just let openai handle it?
-- Task 4: More multi-threading is needed! It should'nt take so much time for loading jobs.
+- Task 4: More multi-threading is needed! It shouldn't take so much time for loading jobs. 
 
 ## Medium Priority
 - Task 1: Check how would other LLMs work with the current implementation setup.
@@ -13,7 +13,8 @@
 
 ## Low Priority
 - Task 1: Remove the extra bits that I don't use from `my_linkedin_api` to keep it clean.
-- Task 2: Add new chat button to reset the memory
+- Task 2: Add new chat button to reset the memory and open a new deiscussion.
 - Task 3: Add a place that the user can upload their resume!
-- Task 4: (Final step) Use py2exe, to generate a .exe file for the app, or maybe use git-release?
-- Task 5: Improve the memory from csv file to a better solution
+- Task 4: Improve the memory from csv file to a better solution: can you chrome db or redis if we don't need the vector part.
+- Task 5: Update the diagram it's ugly!
+- Task 5: (Final step) Use py2exe, to generate a .exe file for the app, or maybe use git-release?

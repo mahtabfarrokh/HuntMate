@@ -1,9 +1,12 @@
+from typing import get_args
 import streamlit as st
 import argparse
 import logging
 import os
 
 from huntmate_core import HuntMate
+from settings import AppConfig
+from models import WorkMode, ExperienceLevel, JobSearchParams
 
 
 st.set_page_config(layout="wide")
@@ -35,7 +38,7 @@ if "chatbot" not in st.session_state:
 
 chatbot = st.session_state.chatbot
 
-logo_col, spacer_col, main_col = st.columns([1, 0.5,  5])
+logo_col, spacer_col, main_col = st.columns(AppConfig.COLUMN_SETUP)
 
 with logo_col:
     st.image("images/logo.png", use_container_width=True)
@@ -61,26 +64,26 @@ if st.session_state.show_job_form:
         # Define form fields based on your questions
         limit = st.number_input(
             "Please provide the number of jobs I should be searching through:", 
-            min_value=1, 
-            max_value=50, 
-            value=getattr(st.session_state.form_prefill, "limit", 10)
+            min_value=AppConfig.MIN_JOBS, 
+            max_value=AppConfig.MAX_JOBS, 
+            value=getattr(st.session_state.form_prefill, "limit", AppConfig.DEFAULT_LIMIT),
         )
         
         remote = st.multiselect(
             "Please provide your preference for work mode:", 
-            options=["Onsite", "Remote", "Hybrid"],
+            options=[e.name.replace("_", "").capitalize() for e in WorkMode],
             default=[i.name.lower().replace("_", "").capitalize() for i in getattr(st.session_state.form_prefill, "work_mode", [])]
         )
 
         experience = st.multiselect(
             "Please provide your preference for experience level:", 
-            options=["Internship", "Entry level", "Associate", "Mid senior level", "Director", "Executive"],
+            options=[e.name.replace("_", " ").capitalize() for e in ExperienceLevel],
             default=[i.name.lower().replace("_", " ").capitalize() for i in getattr(st.session_state.form_prefill, "experience", [])]
         )
         
         job_type = st.multiselect(
             "Please provide your preference for job type:", 
-            options=["Full-time", "Contract", "Part-time", "Temporary", "Internship", "Volunteer", "Other"],
+            options=list(get_args(JobSearchParams.__annotations__['job_type'])[0].__args__),
             default=[i for i in getattr(st.session_state.form_prefill, "job_type", [])]
         )
         locations = st.text_input(
@@ -104,8 +107,8 @@ if st.session_state.show_job_form:
             explanation += f"AI: Please provide your preference for work mode: {remote}\n"
             explanation += f"AI: Please provide your preference for experience: {experience}\n"
             explanation += f"AI: Please provide your preference for job type: {job_type}\n"
-            explanation += f"AI: Please provide your preference for location name: {locations}\n"
-            explanation += f"AI: Please provide your preference for job keywords: {job_keywords}\n"
+            explanation += f"AI: Please provide your preference for the location: {locations}\n"
+            explanation += f"AI: Please provide your preference for job title keywords: {job_keywords}\n"
             explanation += "[Extra Preferences Tag]"
             explanation += f"AI: Please describe any other preferences you have for the job search: {other_preferences}\n"
             

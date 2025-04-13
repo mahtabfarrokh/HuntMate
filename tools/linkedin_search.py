@@ -9,10 +9,10 @@ import os
 
 
 from models import JobSearchParams
+from settings import AppConfig
 import asyncio
 
 
-MAX_SEARCH_ITEMS = 5  # Limit for job keywords and locations
 
 logger = logging.getLogger(__name__)
 
@@ -59,12 +59,12 @@ class LinkedinSearchTool:
             seen_jobs = set(pd.read_csv("./db/seen_jobs.csv")["job_id"])
 
         logging.info("Searching for jobs on LinkedIn")
-        final_limit = search_params.limit + 5
+        final_limit = search_params.limit + AppConfig.EXTRA_JOBS_TO_SEARCH_LOWER
         if len(search_params.job_keywords) == 1 and len(search_params.locations) == 1:
-            final_limit = search_params.limit + 5 # Add extra jobs to account for duplicates or wrong matches
+            final_limit = search_params.limit + AppConfig.EXTRA_JOBS_TO_SEARCH_UPPER # Add extra jobs to account for duplicates or wrong matches
 
-        for keyword in search_params.job_keywords[:MAX_SEARCH_ITEMS]: 
-            for location in search_params.locations[:MAX_SEARCH_ITEMS]:
+        for keyword in search_params.job_keywords[:AppConfig.MAX_SEARCH_ITEMS]: 
+            for location in search_params.locations[:AppConfig.MAX_SEARCH_ITEMS]:
                 input_search = {
                     "keywords": keyword,
                     "location_name": location,
@@ -72,7 +72,7 @@ class LinkedinSearchTool:
                     "remote": [remote.value for remote in search_params.work_mode],
                     "experience": [experience.value for experience in search_params.experience],
                     "job_type": [job_type[0].upper() for job_type in search_params.job_type],
-                    "listed_at": 24*60*60*30,  # Jobs listed in the last 30 days
+                    "listed_at": AppConfig.LAST_MONTH_TIME,  # Jobs listed in the last 30 days
                 }
 
                 logger.info(f"Search parameters: {input_search}")
@@ -107,7 +107,7 @@ class LinkedinSearchTool:
                         tasks.append(fetch_job_details(job_id))
 
                     results = []
-                    batch_size = 8
+                    batch_size = AppConfig.LINKEDIN_BATCH_PROCESS
                     for i in range(0, len(tasks), batch_size):
                         batch = tasks[i:i + batch_size]
                         batch_results = await asyncio.gather(*batch, return_exceptions=True)
