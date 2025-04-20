@@ -4,7 +4,8 @@
 - Task 1: Add Indeed Scrapping to the pipeline
 - Task 2: Add prompts for craft email.
 - Task 3: Change unsupported task to a more user-friendly message or just let openai handle it?
-- Task 4: More multi-threading is needed! It shouldn't take so much time for loading jobs. 
+- Task 4: More multi-threading is needed! It shouldn't take so much time for loading jobs.
+- Task 5: Switch to Promptlayer and remove it from the codebase.
 
 ## Medium Priority
 - Task 1: Check how would other LLMs work with the current implementation setup.
