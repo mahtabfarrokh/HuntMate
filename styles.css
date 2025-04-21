@@ -1,0 +1,54 @@
+/* styles.css */
+
+div[data-testid="stForm"] div[data-testid="stFormItem"] > div:first-child {
+    font-size: 20px !important;
+    font-weight: 500;
+}
+
+.stMarkdown p {
+    font-size: 20px !important;
+}
+
+div[data-testid="stHelp"] {
+    font-size: 18px !important;
+}
+
+input, textarea {
+    font-size: 18px !important;
+}
+
+div[data-baseweb="select"] {
+    font-size: 18px !important;
+}
+
+button {
+    font-size: 18px !important;
+}
+
+/* Tighter layout for forms */
+div[data-testid="stForm"] > div {
+    gap: 0rem !important;
+    margin-bottom: -1rem !important;
+}
+
+div[data-testid="stNumberInput"],
+div[data-testid="stMultiSelect"],
+div[data-testid="stTextInput"],
+div[data-testid="stTextArea"] {
+    margin-top: -1rem !important;
+    margin-bottom: -1rem !important;
+}
+
+/* Custom label class */
+.tight-label {
+    font-size: 20px;
+    margin: 1.5rem 0 -0.75rem 0;
+    padding: 0;
+    line-height: 1.2;
+}
+
+/* Form container width control */
+div[data-testid="stForm"] {
+    max-width: 80%;
+    margin: 0 auto;
+}

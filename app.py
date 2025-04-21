@@ -11,6 +11,39 @@ from models import WorkMode, ExperienceLevel, JobSearchParams
 
 st.set_page_config(layout="wide")
 
+
+# Inject external styles
+with open("styles.css") as f:
+    st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+
+
+# Helper function for tight labels
+def tight_label(text: str):
+    st.markdown(f'<div class="tight-label">{text}</div>', unsafe_allow_html=True)
+
+
+class CheckBoxArray:
+    def __init__(self, name: str, anchor, checkboxes: list[str], max_select: int, num_cols=1):
+        self.name = name
+        self.anchor = anchor
+        cols = self.anchor.columns(num_cols)
+
+        for i, cb in enumerate(checkboxes):
+            key = f"{self.name}_{i}"
+            if key not in st.session_state:
+                st.session_state[key] = True  
+
+        cb_values = [st.session_state[f"{self.name}_{i}"] for i in range(len(checkboxes))]
+        disable = sum(cb_values) == max_select
+
+        for i, cb in enumerate(checkboxes):
+            key = f"{self.name}_{i}"
+            cols[i % num_cols].checkbox(
+                label=cb,
+                disabled=(not st.session_state[key] and disable),
+                key=key
+            )
+
 # Initialize chat history
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -20,11 +53,11 @@ if "show_job_form" not in st.session_state:
 
 if "form_prefill" not in st.session_state:
     st.session_state.form_prefill = None
-    
+
 if "chatbot" not in st.session_state:
     logging.basicConfig(
-        filename="huntmate.log",  # or None to only log to console
-        level=logging.INFO,       # change to logging.DEBUG for more detail
+        filename="huntmate.log",
+        level=logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
@@ -44,64 +77,80 @@ with logo_col:
     st.image("images/logo.png", use_container_width=True)
 
 with spacer_col:
-    # empty spacer, no content
-    pass
+    pass  # spacer column
 
 with main_col:
     st.title("Welcome to HuntMate!")
     st.write("I am your companion in job hunting! :)")
     st.write("You can start by saying 'Find me a job' or ask me anything about job search.")
 
-# Display chat messages from history on app rerun
+# Display chat messages from history
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Display the job form if show_job_form is True
+# Show form if triggered
 if st.session_state.show_job_form:
-    st.subheader("Job Search Preferences")
-    with st.form(key="job_form"):
-        # Define form fields based on your questions
+    with st.form(key="job_form", clear_on_submit=False):
+        st.subheader("Job Search Preference Form")
+
+        st.write("Please select the job boards you want to search on:")
+        websites = ["Indeed", "LinkedIn", "Google", "Glassdoor"]
+        cb_array = CheckBoxArray("cb_jobs", st, checkboxes=websites, num_cols=6, max_select=len(websites))
+
+        tight_label("Please provide the number of jobs I should be searching through:")
         limit = st.number_input(
-            "Please provide the number of jobs I should be searching through:", 
-            min_value=AppConfig.MIN_JOBS, 
-            max_value=AppConfig.MAX_JOBS, 
+            label="limit", label_visibility="hidden",
+            min_value=AppConfig.MIN_JOBS,
+            max_value=AppConfig.MAX_JOBS,
             value=getattr(st.session_state.form_prefill, "limit", AppConfig.DEFAULT_LIMIT),
         )
-        
+
+        tight_label("Please provide your preference for work mode:")
         remote = st.multiselect(
-            "Please provide your preference for work mode:", 
+            label="work_mode", label_visibility="hidden",
             options=[e.name.replace("_", "").capitalize() for e in WorkMode],
-            default=[i.name.lower().replace("_", "").capitalize() for i in getattr(st.session_state.form_prefill, "work_mode", [])]
+            default=[i.name.lower().replace("_", "").capitalize() for i in getattr(st.session_state.form_prefill, "work_mode", [])],
+            help="Select your preferred work mode (e.g., Remote, Onsite, Hybrid).",
         )
 
+        tight_label("Please provide your preference for experience level:")
         experience = st.multiselect(
-            "Please provide your preference for experience level:", 
+            label="experience_level", label_visibility="hidden",
             options=[e.name.replace("_", " ").capitalize() for e in ExperienceLevel],
             default=[i.name.lower().replace("_", " ").capitalize() for i in getattr(st.session_state.form_prefill, "experience", [])]
         )
-        
+
+        tight_label("Please provide your preference for job type:")
         job_type = st.multiselect(
-            "Please provide your preference for job type:", 
+            label="job_type", label_visibility="hidden",
             options=list(get_args(JobSearchParams.__annotations__['job_type'])[0].__args__),
             default=[i for i in getattr(st.session_state.form_prefill, "job_type", [])]
         )
+
+        tight_label("Please provide your preference for location:")
         locations = st.text_input(
-            "Please provide your preference for location:", 
+            label="location", label_visibility="hidden",
             value=", ".join(getattr(st.session_state.form_prefill, "locations", []))
         )
-        
-        job_keywords = st.text_input("Please provide your preference for job keywords:", 
-                                    value=", ".join(getattr(st.session_state.form_prefill, "job_keywords", [])))
-        
-        other_preferences = st.text_area("Please describe any other preferences you have for the job search:",
-                                        value= getattr(st.session_state.form_prefill, "extra_preferences", ""))
-        
+
+        tight_label("Please provide your preference for job keywords:")
+        job_keywords = st.text_input(
+            label="job_keywords_input", label_visibility="hidden",
+            value=", ".join(getattr(st.session_state.form_prefill, "job_keywords", []))
+        )
+
+        tight_label("Please describe any other preferences you have for the job search:")
+        other_preferences = st.text_area(
+            label="job_extra_input", label_visibility="hidden",
+            value=getattr(st.session_state.form_prefill, "extra_preferences", "")
+        )
+
+        st.markdown('<div class="tight-label"> </div>', unsafe_allow_html=True)
         submit_button = st.form_submit_button("Submit")
-        
+        st.markdown('<div class="tight-label"> </div>', unsafe_allow_html=True)
 
         if submit_button:
-            # Compile all inputs into an explanation string
             explanation = ""
             explanation += f"AI: Please provide the number of jobs I should be searching through: {limit}\n"
             explanation += f"AI: Please provide your preference for work mode: {remote}\n"
@@ -111,42 +160,32 @@ if st.session_state.show_job_form:
             explanation += f"AI: Please provide your preference for job title keywords: {job_keywords}\n"
             explanation += "[Extra Preferences Tag]"
             explanation += f"AI: Please describe any other preferences you have for the job search: {other_preferences}\n"
-            
-            # Process the form with your function
+
+
+            selected_websites = [
+                websites[i] for i in range(len(websites))
+                if st.session_state.get(f"cb_jobs_{i}", False)
+            ]
+
             with st.spinner("Processing your job preferences, this will take a while, please be patient."):
-                # Call your function with the explanation
-                response = chatbot.run(explanation, skip_router=True, filled_job_form=True)
-                
-                # Display result in the chat
+                response = chatbot.run(explanation, skip_router=True, filled_job_form=True, websites=selected_websites)
                 with st.chat_message("assistant"):
                     st.markdown(response)
-                
-                # Add assistant message to chat history
                 st.session_state.messages.append({"role": "assistant", "content": response})
-                
-                # Reset the form flag
                 st.session_state.show_job_form = False
                 st.rerun()
 
-# Accept user input
+# Chat input
 if prompt := st.chat_input("Ask me anything"):
-    # Display user message in chat message container
     with st.chat_message("user"):
         st.markdown(prompt)
-    # Add user message to chat history
     st.session_state.messages.append({"role": "user", "content": prompt})
-
-    # Get response from HuntMate
     response = chatbot.run(prompt, skip_router=False, filled_job_form=False)
 
-    if response == "show_form": 
-        # Define the questions and fields
+    if response == "show_form":
         st.session_state.show_job_form = True
         st.rerun()
     else:
-        # Display assistant response in chat message container
         with st.chat_message("assistant"):
             st.markdown(response)
-
         st.session_state.messages.append({"role": "assistant", "content": response})
-
