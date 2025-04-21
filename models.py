@@ -40,7 +40,6 @@ class JobSearchParams(BaseModel):
     extra_preferences: str = Field(description="Extra preferences for the job search.")
 
 
-
 # Schema for structured output to use as routing logic
 class Route(BaseModel):
     steps: list[Step]
@@ -59,6 +58,7 @@ class State(TypedDict):
     final_response: str
     skip_router: bool
     filled_job_form: bool 
+    selected_websites: List[str]
     information_to_memorize: List[str]
 
 
@@ -72,3 +72,5 @@ class JobMatch(BaseModel):
 class JobUserMention(BaseModel): 
     steps: list[Step]
     description: str = Field(description="Description of the job.")
+
+

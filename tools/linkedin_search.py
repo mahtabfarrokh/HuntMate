@@ -1,6 +1,6 @@
 
 from my_linkedin_api import Linkedin
-from typing import List
+from typing import List, Dict
 import pandas as pd
 import configparser
 import logging
@@ -47,8 +47,9 @@ class LinkedinSearchTool:
         except Exception as e:
             logger.error(f"Error fetching job {job_id}: {str(e)}")
             return ""
-        
-    def job_search(self, search_params: JobSearchParams) -> List[dict]:
+    
+
+    def job_search(self, search_params: JobSearchParams) -> List[Dict[str, str]]:
         """ Search for jobs on LinkedIn """
         all_jobs = []
         if "db" not in os.listdir():
@@ -103,6 +104,7 @@ class LinkedinSearchTool:
                         job_id = job["entityUrn"].split(":")[-1]
                         if job_id in seen_jobs:
                             continue
+
                         seen_jobs.add(job_id)
                         tasks.append(fetch_job_details(job_id))
 
@@ -124,7 +126,8 @@ class LinkedinSearchTool:
                                 "remote_allowed": details.get('workRemoteAllowed', 'unknown'),
                                 "job_description": details.get('description', dict()).get('text', 'unknown'),
                                 "job_posting_link": "https://www.linkedin.com/jobs/view/" + job_id,
-                                "job_id": job_id
+                                "job_id": job_id,
+                                "site": "LinkedIn",
                             }
                             all_jobs.append(select_info)
 

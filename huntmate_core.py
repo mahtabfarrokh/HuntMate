@@ -6,16 +6,19 @@ from typing import List, Dict, Any
 import streamlit as st
 import pandas as pd
 import configparser
+import Levenshtein
 import logging
 import shutil
 import json
 import os
 
 
-from tools.linkedin_search import LinkedinSearchTool, JobSearchParams
-from prompts import fill_job_preferences, check_job_match, router_prompt, craft_coverletter_prompt, find_job_user_mentioned_prompt
-from models import JobMatch, Route, State, JobSearchParams, JobUserMention
 from settings import AppConfig
+from tools.jobspy_search import JobSpySearchTool
+from tools.linkedin_search import LinkedinSearchTool
+from models import JobMatch, Route, State, JobSearchParams, JobUserMention
+from prompts import fill_job_preferences, check_job_match, router_prompt, craft_coverletter_prompt, find_job_user_mentioned_prompt
+
 
 
 logger = logging.getLogger(__name__)
@@ -31,6 +34,7 @@ class HuntMate:
         os.environ["OPENAI_API_KEY"] = config['openai']['api_key']
         self.model_name = model_name
         self.linkedin_tool = LinkedinSearchTool()
+        self.jobspy_tool = JobSpySearchTool()
         self.create_workflow()
         
         
@@ -183,9 +187,10 @@ class HuntMate:
 
     def job_details_output(self, job: dict, job_match: JobMatch) -> str:
         """Generate the output for the job details"""
-        # TODO: This should be moved to app.py
-        return f"""### :briefcase: {job['title']}  \n ###### **Company:** {job['company']}  \n ###### **Match Score:** {job_match.match_score}  \n ###### **Job Summary:** {job_match.job_summary}  \n ###### **Job Reasoning:** {job_match.reasonning}  \n ###### **[🔗 Job Link]({job['job_posting_link']})**  \n---------------------------------\n"""
-    
+
+        source_class = str(job["site"]).capitalize()  # default class if unknown
+        return f""" 💼 {job['title']} [🌀 {source_class}] \n ###### **Company:** {job['company']}  \n ###### **Match Score:** {job_match.match_score}  \n ###### **Job Summary:** {job_match.job_summary}  \n ###### **Job Reasoning:** {job_match.reasonning}  \n ###### **[🔗 Link to the job posting]({job['job_posting_link']})**  \n---------------------------------\n"""
+     
     def basic_keyword_match(self, job: dict, keywords: List[str]) -> bool:
         """Check if the job title or description contains any of the keywords"""
         title = job["title"].lower()
@@ -195,13 +200,42 @@ class HuntMate:
                 return True
         return False
 
+    def remove_duplicate_jobs(self, linkedin_jobs: List[Dict[str, str]], jobspy_jobs: List[Dict[str, str]]) -> List[Dict[str, str]]:
+        """ Remove duplicate jobs based on company and title edit distance """
+
+        def is_similar(str1: str, str2: str, threshold: float = 0.6) -> bool:
+            """Check if two strings are similar based on a threshold using Levenshtein ratio."""
+            return Levenshtein.ratio(str1.lower(), str2.lower()) >= threshold
+        
+        unique_jobs = jobspy_jobs[:]
+        for linkedin_job in linkedin_jobs:
+            for jobspy_job in jobspy_jobs:
+                if is_similar(linkedin_job["title"], jobspy_job["title"]) and is_similar(linkedin_job["company"], jobspy_job["company"]):
+                    unique_jobs.remove(jobspy_job)
+                    break
+        unique_jobs.extend(linkedin_jobs)
+        return unique_jobs
+
     def find_related_jobs(self, state: State) -> Dict[str, Any]:
         """Find related jobs based on the user's input"""
         counter, i = 1, 0
         score_answer = {"1":[], "2":[],"3": [], "4": [], "5": []}
         
-        found_jobs = self.linkedin_tool.job_search(state["job_search_params"])
+        linkedin_jobs, jobspy_jobs = [], []
+
+        if state["selected_websites"] == []:
+            state["selected_websites"] = ["Indeed", "LinkedIn", "Google", "Glassdoor"]
         
+        if "LinkedIn" in state["selected_websites"]:
+            linkedin_jobs = self.linkedin_tool.job_search(state["job_search_params"])
+            if len(state["selected_websites"]) > 1:
+                state["selected_websites"].remove("LinkedIn")
+
+        if len(state["selected_websites"]) > 0:
+            jobspy_jobs = self.jobspy_tool.job_search(state["job_search_params"], state["selected_websites"])
+        
+        found_jobs = self.remove_duplicate_jobs(linkedin_jobs, jobspy_jobs)
+
         found_jobs = [job for job in found_jobs if self.basic_keyword_match(job, state["job_search_params"].job_keywords)]
 
         logger.info("Found jobs: %s", len(found_jobs))
@@ -319,9 +353,12 @@ class HuntMate:
         # self.save_diagram("./images/diagram.png")
         return 
 
-    def run(self, user_input: str, skip_router: bool = True, filled_job_form: bool = False) -> str:
+    def run(self, user_input: str, skip_router: bool = True, filled_job_form: bool = False, websites: List[str] = []) -> str:
         """Run the HuntMate to generate the response"""
-        response = self.workflow.invoke({"user_input": user_input, "skip_router": skip_router, "filled_job_form": filled_job_form})["final_response"]
+        response = self.workflow.invoke({"user_input": user_input, 
+                                         "skip_router": skip_router, 
+                                         "filled_job_form": filled_job_form, 
+                                         "selected_websites": websites})["final_response"]
         return response
     
 
