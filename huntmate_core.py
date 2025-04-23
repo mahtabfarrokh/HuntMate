@@ -207,14 +207,19 @@ class HuntMate:
             """Check if two strings are similar based on a threshold using Levenshtein ratio."""
             return Levenshtein.ratio(str1.lower(), str2.lower()) >= threshold
         
-        unique_jobs = jobspy_jobs[:]
-        for linkedin_job in linkedin_jobs:
-            for jobspy_job in jobspy_jobs:
+
+        filtered_jobspy = []
+        for jobspy_job in jobspy_jobs:
+            duplicate = False
+            for linkedin_job in linkedin_jobs:
                 if is_similar(linkedin_job["title"], jobspy_job["title"]) and is_similar(linkedin_job["company"], jobspy_job["company"]):
-                    unique_jobs.remove(jobspy_job)
+                    duplicate = True
                     break
-        unique_jobs.extend(linkedin_jobs)
-        return unique_jobs
+            if not duplicate:
+                filtered_jobspy.append(jobspy_job)
+
+        # Combine filtered jobspy jobs with linkedin jobs
+        return filtered_jobspy + linkedin_jobs
 
     def find_related_jobs(self, state: State) -> Dict[str, Any]:
         """Find related jobs based on the user's input"""

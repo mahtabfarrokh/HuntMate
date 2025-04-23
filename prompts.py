@@ -30,12 +30,14 @@ def fill_job_preferences(user_input) -> List[dict]:
 
                 - **Job Keywords Handling:**  
                     - Include the main **essential keywords** for the job search in `job_keywords`.  
+                    - If the user uses abbreviations such as "AI," "ML," or "DS," expand them to their full forms.
+                    - Example: "AI" → "Artificial Intelligence", "ML" → "Machine Learning", "DS" → "Data Science"
 
                 - **Extra Preferences:**  
                     - Any additional details provided by the user should be stored in the `extra_preferences` field.
-                    - Do not include non important details such as "User is looking for a job.", we already know that!
-                    
-                    
+                    - IMPORTANT: Do NOT include generic or obvious information (e.g., "User is looking for a job.") — we already know that. If there's nothing specific to add, leave the `extra_preferences` field blank.
+
+                      
                 ### Example:
                 # User Input: I'm looking for a remote job in data science in the United States.
                 # 
@@ -52,8 +54,8 @@ def fill_job_preferences(user_input) -> List[dict]:
                 # 
                 # JSON Output:
                 # {
-                #    "job_keywords": ["AI", "Artificial Intelligence", "Machine Learning", "Deep Learning"],
-                #    "extra_preferences": "Looking for a job in the education domain."},
+                #    "job_keywords": ["Artificial Intelligence", "Machine Learning", "Deep Learning"],
+                #    "extra_preferences": "Searching for a job in the education domain."},
                 """},
 
 
