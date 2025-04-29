@@ -9,6 +9,7 @@ import configparser
 import Levenshtein
 import logging
 import shutil
+import time
 import json
 import os
 
@@ -224,6 +225,7 @@ class HuntMate:
     def find_related_jobs(self, state: State) -> Dict[str, Any]:
         """Find related jobs based on the user's input"""
         counter, i = 1, 0
+        start_time = time.time()
         score_answer = {"1":[], "2":[],"3": [], "4": [], "5": []}
         
         linkedin_jobs, jobspy_jobs = [], []
@@ -242,8 +244,10 @@ class HuntMate:
         found_jobs = self.remove_duplicate_jobs(linkedin_jobs, jobspy_jobs)
 
         found_jobs = [job for job in found_jobs if self.basic_keyword_match(job, state["job_search_params"].job_keywords)]
-
+        mid_time = time.time()
+        logger.info("Time taken for job search (mid - start): %s", mid_time - start_time)
         logger.info("Found jobs: %s", len(found_jobs))
+        
         batch_size = AppConfig.JOB_MATCH_BATCH_SIZE
         while counter < state["job_search_params"].limit + 1 and  i < len(found_jobs): 
             logger.info("Processing job: %s", i)
@@ -276,7 +280,9 @@ class HuntMate:
                 counter += 1
                 if counter > state["job_search_params"].limit + AppConfig.EXTRA_JOBS_TO_SEARCH_LOWER:
                     return {"final_response": answer}
-                
+        end_time = time.time()
+        logger.info("Main function time (end - start): %s", end_time - start_time)
+        logger.info("Main function time (end - mid): %s", end_time - mid_time)
         return {"final_response": answer}
 
     def unsupported_task(self, state: State) -> Dict[str, Any]:

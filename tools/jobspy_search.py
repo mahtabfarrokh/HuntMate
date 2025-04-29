@@ -3,6 +3,7 @@ from typing import List, Dict
 import pandas as pd
 import Levenshtein
 import logging
+import time
 import os
 
 
@@ -53,7 +54,7 @@ class JobSpySearchTool:
         """ Search for jobs using jobspy """
         if websites is None:
             return []  
-        
+       
         final_limit = search_params.limit + AppConfig.EXTRA_JOBS_TO_SEARCH_LOWER
         if len(search_params.job_keywords) == 1 and len(search_params.locations) == 1:
             final_limit = search_params.limit + AppConfig.EXTRA_JOBS_TO_SEARCH_UPPER # Add extra jobs to account for duplicates or wrong matches
@@ -66,6 +67,7 @@ class JobSpySearchTool:
         all_jobs = []
         for keyword in search_params.job_keywords[:AppConfig.MAX_SEARCH_ITEMS]: 
             for location in search_params.locations[:AppConfig.MAX_SEARCH_ITEMS]:
+                start_time = time.time()
                 google_search_str = ""
                 search_term_str = '"' + keyword + '"'
                 if "google" in websites:
@@ -98,6 +100,8 @@ class JobSpySearchTool:
                         "job_id": jobs["id"][i],
                         "site": jobs["site"][i],
                     })
+                end_time = time.time()
+                logging.info(f"JOBSPY (end - start): {end_time - start_time} seconds")
 
         seen_jobs_df = pd.DataFrame(seen_jobs, columns=["job_id"])
         seen_jobs_df.to_csv("./db/seen_jobs.csv", index=False)

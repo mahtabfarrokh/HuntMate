@@ -1,6 +1,6 @@
 
 from my_linkedin_api import Linkedin
-from typing import List, Dict
+from typing import List, Dict, Any
 import pandas as pd
 import configparser
 import logging
@@ -23,7 +23,7 @@ class LinkedinSearchTool:
         config.read('./api.cfg')
         self.api = Linkedin(config['linkedin']['username'], config['linkedin']['password'])
 
-    def get_company_name(self, details: dict) -> str:
+    def get_company_name(self, details: Dict[str, Any]) -> str:
         """ Get company name from company id """
         company_details = details.get("companyDetails", {})
         for key, value in company_details.items():
@@ -60,10 +60,7 @@ class LinkedinSearchTool:
             seen_jobs = set(pd.read_csv("./db/seen_jobs.csv")["job_id"])
 
         logging.info("Searching for jobs on LinkedIn")
-        final_limit = search_params.limit + AppConfig.EXTRA_JOBS_TO_SEARCH_LOWER
-        if len(search_params.job_keywords) == 1 and len(search_params.locations) == 1:
-            final_limit = search_params.limit + AppConfig.EXTRA_JOBS_TO_SEARCH_UPPER # Add extra jobs to account for duplicates or wrong matches
-
+        final_limit = search_params.limit
         for keyword in search_params.job_keywords[:AppConfig.MAX_SEARCH_ITEMS]: 
             for location in search_params.locations[:AppConfig.MAX_SEARCH_ITEMS]:
                 input_search = {
@@ -78,7 +75,7 @@ class LinkedinSearchTool:
 
                 logger.info(f"Search parameters: {input_search}")
                 start_time = time.time()
-                try: 
+                try:
                     jobs = self.api.search_jobs(**input_search)
                 except Exception as e:
                     logger.error(f"Error searching for jobs: {str(e)}")
@@ -101,7 +98,7 @@ class LinkedinSearchTool:
                 async def process_jobs(jobs):
                     tasks = []
                     for job in jobs:
-                        job_id = job["entityUrn"].split(":")[-1]
+                        job_id = str(job["entityUrn"]).split(":")[-1]
                         if job_id in seen_jobs:
                             continue
 
@@ -109,11 +106,8 @@ class LinkedinSearchTool:
                         tasks.append(fetch_job_details(job_id))
 
                     results = []
-                    batch_size = AppConfig.LINKEDIN_BATCH_PROCESS
-                    for i in range(0, len(tasks), batch_size):
-                        batch = tasks[i:i + batch_size]
-                        batch_results = await asyncio.gather(*batch, return_exceptions=True)
-                        results.extend(batch_results)
+                    batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+                    results.extend(batch_results)
                     
                     for result in results:
                         if result and isinstance(result, dict):
@@ -134,7 +128,7 @@ class LinkedinSearchTool:
                 asyncio.run(process_jobs(jobs))
 
                 end_time = time.time()
-                logging.info(f"Time taken for search: {end_time - start_time} seconds")
+                logging.info(f"LinkedIn Time taken for search (end - start): {end_time - start_time} seconds")
 
         seen_jobs_df = pd.DataFrame(seen_jobs, columns=["job_id"])
         seen_jobs_df.to_csv("./db/seen_jobs.csv", index=False)
@@ -144,3 +138,4 @@ class LinkedinSearchTool:
     
 
 
+# I prefer if the job is either in ML application in healthcare and examples are medical imaging, pathology images, cancer research and survival analysis. Or if a job is in Gen AI, and LLM or RAG related.
