@@ -14,11 +14,11 @@ import json
 import os
 
 
-from settings import AppConfig
-from tools.jobspy_search import JobSpySearchTool
-from tools.linkedin_search import LinkedinSearchTool
-from models import JobMatch, Route, State, JobSearchParams, JobUserMention
-from prompts import fill_job_preferences, check_job_match, router_prompt, craft_coverletter_prompt, find_job_user_mentioned_prompt
+from src.settings import AppConfig
+from src.tools.jobspy_search import JobSpySearchTool
+from src.tools.linkedin_search import LinkedinSearchTool
+from src.models import JobMatch, Route, State, JobSearchParams, JobUserMention
+from src.prompts import fill_job_preferences, check_job_match, router_prompt, craft_coverletter_prompt, find_job_user_mentioned_prompt
 
 
 

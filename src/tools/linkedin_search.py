@@ -8,8 +8,8 @@ import time
 import os
 
 
-from models import JobSearchParams
-from settings import AppConfig
+from src.models import JobSearchParams
+from src.settings import AppConfig
 import asyncio
 
 

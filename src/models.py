@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 from typing import List, Literal
 from enum import Enum
 
-from settings import AppConfig
+from src.settings import AppConfig
 
 
 # For chain of thought

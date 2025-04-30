@@ -1,6 +1,6 @@
 from typing import List
 
-from models import JobSearchParams
+from src.models import JobSearchParams
 
 def fill_job_preferences(user_input) -> List[dict]: 
     messages = [
@@ -8,7 +8,7 @@ def fill_job_preferences(user_input) -> List[dict]:
           "content": """
                 Think step by step and populate the JSON job search parameters based on the user's input. Leave fields empty if not provided.
 
-                ### Additional Considerations:
+                ### Feature Explanations:
 
                 - **Locations Handling:**
                 - If the user provides **only a country name**, include the country name along with its top 5 major cities.  
@@ -32,6 +32,7 @@ def fill_job_preferences(user_input) -> List[dict]:
                     - Include the main **essential keywords** for the job search in `job_keywords`.  
                     - If the user uses abbreviations such as "AI," "ML," or "DS," expand them to their full forms.
                     - Example: "AI" → "Artificial Intelligence", "ML" → "Machine Learning", "DS" → "Data Science"
+                 
 
                 - **Extra Preferences:**  
                     - Any additional details provided by the user should be stored in the `extra_preferences` field.
@@ -39,23 +40,21 @@ def fill_job_preferences(user_input) -> List[dict]:
 
                       
                 ### Example:
-                # User Input: I'm looking for a remote job in data science in the United States.
-                # 
-                # JSON Output:
-                # {
-                #    "job_keywords": ["data science"],
-                #   "locations": ["United States", "New York", "Los Angeles", "Chicago", "Houston", "San Francisco"],
-                #   "work_mode": ["2"],},
+                User Input: I'm looking for a remote job in data science in the United States.
+                JSON Output:
+                {
+                   "job_keywords": ["Data Science"],
+                   "locations": ["United States", "New York", "Los Angeles", "Chicago", "Houston", "San Francisco"],
+                   "work_mode": ["2"],},
 
 
                 Also make sure for the extra preferences, the user's input is stored in the `extra_preferences` field: 
                 ### Example:
-                # User Input: I'm looking for a AI related job in the education domain.
-                # 
-                # JSON Output:
-                # {
-                #    "job_keywords": ["Artificial Intelligence", "Machine Learning", "Deep Learning"],
-                #    "extra_preferences": "Searching for a job in the education domain."},
+                User Input: I'm looking for a AI related job in the education domain. 
+                JSON Output:
+                {
+                    "job_keywords": ["Artificial Intelligence"],
+                    "extra_preferences": "Searching for a job in the education domain of AI."},
                 """},
 
 
@@ -76,9 +75,9 @@ def check_job_match(user_input: JobSearchParams, title:str, company:str, job_des
 
     messages = [
         {"role": "system",  "content": """  
-                Fill the provided pydantic schema with the user's input and the job description.
+                Fill the provided Pydantic schema with the user's input and the job description.
                 For the `match_score`, give a score based on the following ruberic: 
-                - 5 (Perfect Match): The job aligns with all essential preferences: at least one keyword, experience level. Extra preferences (if provided) are also met.
+                - 5 (Perfect Match): The job aligns with all essential preferences: at least one keyword, one of the experience level. Extra preferences (if provided) are also met.
                 - 4 (Strong Match): The job matches most preferences including at least one keyword (at least 4/5 categories). Extra preferences are partially met or moderately aligned.
                 - 3 (Moderate Match): The job meets at least 3/5 essential categories. It may have minor misalignment (e.g. experience level mismatch). Extra preferences are partially considered.
                 - 2 (Weak Match): The job meets only 2/5 essential categories. It may have significant mismatches, and extra preferences are not met.
@@ -90,7 +89,7 @@ def check_job_match(user_input: JobSearchParams, title:str, company:str, job_des
                 Note: It's perfectly fine if the job title doesn't exactly match the keyword, as long as the keyword is mentioned in the job description.
                 For example: if the keyword is "machine learning" but the job title is "Data Scientist" and the description includes machine learning tasks, that's still a valid match.
 
-                Provide a brief justification for the score under `reasonning`.
+                Provide a brief justification for the score under `reasoning`.
                 """},
 
         {"role": "user", "content": f"""
@@ -131,6 +130,7 @@ def router_prompt(user_input:str) -> List[dict]:
     ]
     return messages
 
+ 
 def craft_coverletter_prompt(user_input: str, memory_info: List[str], job_description:str) -> List[dict]:
     """Prompt for generating a cover letter based on user input and job description."""
     

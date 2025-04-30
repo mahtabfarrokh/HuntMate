@@ -1,7 +1,7 @@
 # HuntMate
 
 <div align="center">
-    <img src="images/logo.png" alt="Logo" width="300" height="300"><br>
+    <img src="./static/images/logo.png" alt="Logo" width="300" height="300"><br>
     <br><br>
 </div>
 
@@ -17,7 +17,7 @@ Since a true mate should be able to handle a variety of requests, HuntMate is an
 Here’s an overview of the current LLM agent workflow:
 
 <div align="center">
-    <img src="images/diagram.png" alt="Diagram"><br>
+    <img src="./static/images/diagram.png" alt="Diagram"><br>
     <br><br>
 </div>
 
