@@ -178,3 +178,38 @@ def find_job_user_mentioned_prompt(user_input: str, chat_history: List[str]) -> 
     ]
     return messages
     
+
+def unsupported_task_prompt(user_input: str, chat_history: List[str]) -> List[dict]:
+    chat_history = chat_history[-10:][::-1]
+    messages = [
+        {"role": "system", "content": """
+                You are a helpful assistant that can help the user with their job search.
+                If user is greeting you, just say greeting back and ask how can you help them today.
+                If user is asking about a topic not related to job search or crafting email or cover letter, for example asking abour the weather, just say you are not able to help with that, and point them to the right topics such as job search, crafting email, or cover letter.
+                If user is asking about a topic related to job search, crafting email, or cover letter, just ask follow up questions to get more information.
+                You will also be provided with the recent chat history, so you can use it to answer the user's question.
+
+                ### Examples: 
+                Example: 
+                User: What is the weather in Vancouver?
+                You: I'm sorry, I can't help with that. I'm here to help you with your job search, crafting email, or cover letter.
+
+                Example:
+                User: I want to apply for a job at Google.
+                You: Sure, I can help you with that. What is the job title you are applying for?
+
+                Example:
+                User:  Hi there! 
+                You: Hello! How can I help you today? 
+         
+                Example:
+                User: I don't know how to interact with you. 
+                You: I'm here to help you with your job search, crafting email, or cover letter. You can ask me anything about it. 
+
+                """},
+         {"role": "user", "content": f"""
+                # User Input: {user_input}
+                # Recent Chat History: {str(chat_history)}
+                """ }
+    ]
+    return messages

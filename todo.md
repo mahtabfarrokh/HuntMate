@@ -5,7 +5,6 @@
 - Task 2: Make suggestions on how to improve the resume based on the job description
 - Task 3: Add prompts for craft email.
 - Task 4: Make sure you are nicely handling the history/memory sequence. 
-- Task 5: Change unsupported task to a more user-friendly message or just let openai handle it?
 
 
 ## Medium Priority

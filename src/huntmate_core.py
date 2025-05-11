@@ -18,7 +18,7 @@ from src.settings import AppConfig
 from src.tools.jobspy_search import JobSpySearchTool
 from src.tools.linkedin_search import LinkedinSearchTool
 from src.models import JobMatch, Route, State, JobSearchParams, JobUserMention
-from src.prompts import fill_job_preferences, check_job_match, router_prompt, craft_coverletter_prompt, find_job_user_mentioned_prompt
+from src.prompts import fill_job_preferences, check_job_match, router_prompt, craft_coverletter_prompt, find_job_user_mentioned_prompt, unsupported_task_prompt
 
 
 
@@ -48,10 +48,12 @@ class HuntMate:
 
     def clean_cache(self) -> None:
         """Clean the cache before running the application"""
-        if os.path.exists("./tools/__pycache__"):
-            shutil.rmtree("./tools/__pycache__")
-        if os.path.exists("./my_linkedin_api/__pycache__"):
-            shutil.rmtree("./my_linkedin_api/__pycache__")
+        if os.path.exists("./src/tools/__pycache__"):
+            shutil.rmtree("./src/tools/__pycache__")
+        if os.path.exists("./src/my_linkedin_api/__pycache__"):
+            shutil.rmtree("./src/my_linkedin_api/__pycache__")
+        if os.path.exists("./src/__pycache__"):
+            shutil.rmtree("./src/__pycache__")
         if os.path.exists("db"):
             # RESET the memory
             for file in os.listdir("db"):
@@ -208,7 +210,6 @@ class HuntMate:
             """Check if two strings are similar based on a threshold using Levenshtein ratio."""
             return Levenshtein.ratio(str1.lower(), str2.lower()) >= threshold
         
-
         filtered_jobspy = []
         for jobspy_job in jobspy_jobs:
             duplicate = False
@@ -287,8 +288,16 @@ class HuntMate:
 
     def unsupported_task(self, state: State) -> Dict[str, Any]:
         """Return a response for an unsupported task"""
-        return {"final_response": "I'm sorry, I can't help with that. If you believe Hunt Mate should be able to help with this, please let us know by raising an issue in our Git repo."}
-    
+        chat_history = []
+        if os.path.exists("db/chat_history.csv"):
+            chat_history = pd.read_csv("db/chat_history.csv")["chat_history"].tolist()
+        response = completion(
+            model=self.model_name,
+            messages=unsupported_task_prompt(state["user_input"], chat_history),
+            response_format=None
+        )
+        return {"final_response": response.choices[0].message.content}
+        
     def update_memory(self, state: State) -> None:
         """Save memory and chat history to CSV files."""
         user_info_memory_path = "db/user_info_memory.csv"
