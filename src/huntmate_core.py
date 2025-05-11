@@ -18,7 +18,7 @@ from src.settings import AppConfig
 from src.tools.jobspy_search import JobSpySearchTool
 from src.tools.linkedin_search import LinkedinSearchTool
 from src.models import JobMatch, Route, State, JobSearchParams, JobUserMention
-from src.prompts import fill_job_preferences, check_job_match, router_prompt, craft_coverletter_prompt, find_job_user_mentioned_prompt, unsupported_task_prompt
+from src.prompts import *
 
 
 
@@ -114,8 +114,15 @@ class HuntMate:
         return route_map.get(state["route_decision"], "unsupported_task")
         
     def craft_email(self, state: State) -> Dict[str, Any]:
-        # TODO: Attach this to a llm call 
-        return {"final_response": "Email crafted"}
+        job_description = self.find_exact_job(state)
+        memory_personal = self.load_personal_memory(state)
+        response = completion(
+            model=self.model_name,
+            messages=craft_email_prompt(state["user_input"], memory_personal, job_description),
+            response_format=None
+        )
+        cover_letter = response.choices[0].message.content
+        return {"final_response": cover_letter}
     
     def find_exact_job(self, state: State) -> str:
         """Find the exact job the user is selecting based on the user's input and history"""

@@ -110,7 +110,7 @@ def check_job_match(user_input: JobSearchParams, title:str, company:str, job_des
 def router_prompt(user_input:str) -> List[dict]:
     messages = [
         {"role": "system", "content": """
-                Think step by step and route the user's input to the correct function. 
+                Think carefully and route the user's input to the correct function. 
                 For example, if the user says "job search," route it to the `job_search` function.
 
                 Also extract and record any critical new information that should be persisted in chat history — such as user general preferences/constraints/information. 
@@ -210,6 +210,33 @@ def unsupported_task_prompt(user_input: str, chat_history: List[str]) -> List[di
          {"role": "user", "content": f"""
                 # User Input: {user_input}
                 # Recent Chat History: {str(chat_history)}
+                """ }
+    ]
+    return messages
+
+
+ 
+def craft_email_prompt(user_input: str, memory_info: List[str], job_description:str) -> List[dict]:
+    """Prompt for generating a cover letter based on user input and job description."""
+    
+    recent_memory = ", ".join(memory_info[-10:]) if memory_info else "None"
+    
+    messages = [
+        {"role": "system", "content": """
+                Craft a personalized email based on the job description, user input and preferences, and the recent chat history. 
+                Keep the tone of the email professional and friendly. Unless user asks for a more casual tone.
+         
+                ### Additional Considerations:
+                - **Job Description:** Highlight relevant skills and experiences that match the job requirements.
+                - **Length:** Keep the email concise, ideally under 100 words. Unless user asks for more details.
+                """},
+        {"role": "user", "content": f"""
+                # User Preference: 
+                - User Input: {user_input}
+                - General Information About the User in Memory: {str(recent_memory)}
+                ----------------------------------------------
+                # About the job:
+                - Job Description: {job_description}
                 """ }
     ]
     return messages

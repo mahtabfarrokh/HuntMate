@@ -42,7 +42,6 @@ class JobSearchParams(BaseModel):
 
 # Schema for structured output to use as routing logic
 class Route(BaseModel):
-    steps: list[Step]
     route: Literal["craft_email", "craft_coverletter", "job_search", "unsupported_task", "extract_and_memorize"] = Field(
         None, description="The next step in the routing process"
     )
