@@ -27,18 +27,20 @@ class ExperienceLevel(Enum):
     DIRECTOR = "5"
     EXECUTIVE = "6"
 
+class Location(BaseModel):
+    city: str = Field(description="City name")
+    country: str = Field(description="Country name")
 
 # Shema for filling the job search parameters
 class JobSearchParams(BaseModel):
     steps: list[Step]
     job_keywords: List[str] = Field(description="Main essential keywords for the job search")
-    locations: List[str] = Field(description="Locations for the job search, has to be city or country names")
+    locations: List[Location] = Field(description="Locations for the job search.")
     work_mode: List[WorkMode] = Field(description="Work mode options are on-site, remote, or hybrid")
     experience: List[ExperienceLevel] = Field(description="Experience levels")
     job_type: List[Literal["Full-time", "Contract", "Part-time", "Temporary", "Internship", "Volunteer", "Other"]] = Field(description="Types of jobs")
     limit: int = Field(description="Limit on the number of jobs to return")
     extra_preferences: str = Field(description="Extra preferences for the job search.")
-
 
 # Schema for structured output to use as routing logic
 class Route(BaseModel):

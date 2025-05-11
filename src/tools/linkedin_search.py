@@ -65,7 +65,7 @@ class LinkedinSearchTool:
             for location in search_params.locations[:AppConfig.MAX_SEARCH_ITEMS]:
                 input_search = {
                     "keywords": keyword,
-                    "location_name": location,
+                    "location_name": location.city + ", " + location.country,
                     "limit": final_limit,  
                     "remote": [remote.value for remote in search_params.work_mode],
                     "experience": [experience.value for experience in search_params.experience],

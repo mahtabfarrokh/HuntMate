@@ -2,9 +2,8 @@
 
 ## High Priority
 - Task 1: Add a place that the user can upload their resume!
-- Task 2: Integrate Resume info with job search. 
-- Task 3: Add agent for giving tips on the resume. 
-- Task 4: Fix Linkedin job search Issue! 
+- Task 2: Integrate Resume info with job search.
+- Task 3: Add agent for giving tips on the resume.
 - Task 5: Make suggestions on how to improve the resume based on the job description
 - Task 6: Make sure you are nicely handling the history/memory sequence. 
 

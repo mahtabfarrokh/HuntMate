@@ -20,4 +20,4 @@ class AppConfig:
     # HuntMate core parameters:
     JOB_MATCH_BATCH_SIZE = 64        # Number of jobs to process in parallel in the LLM Call
 
-
+    GLASSDOOR_HEADER_UPDATE = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"

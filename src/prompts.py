@@ -12,13 +12,13 @@ def fill_job_preferences(user_input) -> List[dict]:
 
                 - **Locations Handling:**
                 - If the user provides **only a country name**, include the country name along with its top 5 major cities.  
-                    - Example: `"United States"` → `["United States", "New York", "Los Angeles", "Chicago", "Houston", "San Francisco"]`
-                    - Example: `"Canada"` → `["Canada", "Toronto", "Montreal", "Vancouver", "Calgary", "Ottawa"]`
+                    - Example: `"United States"` → locations = [Location(city="New York", country="United States"), Location(city="Los Angeles", country="United States"), Location(city="Chicago", country="United States"), Location(city="Houston", country="United States"), Location(city="San Francisco", country="United States")]
+                    - Example: `"Canada"` → locations = [Location(city="Toronto", country="Canada"), Location(city="Montreal", country="Canada"), Location(city="Vancouver", country="Canada"), Location(city="Calgary", country="Canada"), Location(city="Ottawa", country="Canada")]
                 - If the user provides **a city name alone**, do **not** add additional cities.  
-                    - Example: `"Vancouver"` → `["Vancouver"]`
+                    - Example: `"Vancouver"` → locations = [Location(city="Vancouver", country="Canada")]
                 - If the user provides **both a city and a country**, keep them as-is without adding extra cities.  
-                    - Example: `"Vancouver, Canada"` → `["Vancouver", "Canada"]`
-                    - Example: `"Los Angeles, Canada"` → `["Los Angeles", "Canada"]`
+                    - Example: `"Vancouver, Canada"` → locations = [Location(city="Vancouver", country="Canada")]
+                    - Example: `"Los Angeles, Canada"` → locations = [Location(city="Los Angeles", country="Canada")]
 
                 - **Experience Level Handling:**  Pay attention to the following mappings:
                         - INTERNSHIP = "1"
@@ -44,7 +44,7 @@ def fill_job_preferences(user_input) -> List[dict]:
                 JSON Output:
                 {
                    "job_keywords": ["Data Science"],
-                   "locations": ["United States", "New York", "Los Angeles", "Chicago", "Houston", "San Francisco"],
+                   "locations": [Location(city="New York", country="United States"), Location(city="Los Angeles", country="United States"), Location(city="Chicago", country="United States"), Location(city="Houston", country="United States"), Location(city="San Francisco", country="United States")],
                    "work_mode": ["2"],},
 
 
@@ -166,7 +166,7 @@ def find_job_user_mentioned_prompt(user_input: str, chat_history: List[str]) -> 
     messages = [
         {"role": "system", "content": """
                 Think step by step and check if the the job in user input can be found in the chat history.
-                If the job is found in the chat history, return all the job details.
+                If the job is found in the chat history, return all the job details. Include the job title, company name, job description, and the job link.
                 If the job is not found in the chat history, return "No job matched."
 
                 Note: in rare cases you might find mutiple job matches in the chat history, in that case starting from the top of the history return only the first match that you find. 

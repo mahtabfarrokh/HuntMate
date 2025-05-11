@@ -11,6 +11,14 @@ from src.models import JobSearchParams
 from src.settings import AppConfig
 
 
+# The default user agent is blocked by glassdoor, so we need to change it
+from jobspy.glassdoor.constant import headers
+headers["user-agent"] = AppConfig.GLASSDOOR_HEADER_UPDATE
+
+from jobspy.linkedin.constant import headers
+headers["user-agent"] = AppConfig.GLASSDOOR_HEADER_UPDATE
+
+
 logger = logging.getLogger(__name__)
 
 class JobSpySearchTool:
@@ -48,8 +56,17 @@ class JobSpySearchTool:
             return True
         location1 = location1.lower()
         location2 = location2.lower()
-        return Levenshtein.ratio(location1, location2) > 0.4
+        return Levenshtein.ratio(location1, location2) > 0.3
     
+    def fix_website_name(self, website: str, url: str, website_selected: List[str]) -> str:
+        """ Fix the website name if it is google based on the url """
+        
+        if website == "google":
+            for website_selected in website_selected:
+                if website_selected in url:
+                    return website_selected
+        return website
+
     def job_search(self, search_params: JobSearchParams, websites: List[str]) -> List[Dict[str, str]]:
         """ Search for jobs using jobspy """
         if websites is None:
@@ -59,12 +76,16 @@ class JobSpySearchTool:
         if len(search_params.job_keywords) == 1 and len(search_params.locations) == 1:
             final_limit = search_params.limit + AppConfig.EXTRA_JOBS_TO_SEARCH_UPPER # Add extra jobs to account for duplicates or wrong matches
 
+    
         if "seen_jobs.csv" not in os.listdir("./db"):
             seen_jobs = set()
         else:   
             seen_jobs = set(pd.read_csv("./db/seen_jobs.csv")["job_id"])
 
         all_jobs = []
+        search_websites = websites
+        if "linkedin" in websites:
+            search_websites.remove("linkedin")
         for keyword in search_params.job_keywords[:AppConfig.MAX_SEARCH_ITEMS]: 
             for location in search_params.locations[:AppConfig.MAX_SEARCH_ITEMS]:
                 start_time = time.time()
@@ -74,22 +95,25 @@ class JobSpySearchTool:
                     google_search_str = search_term_str + ' in ' + location
                 try:
                     jobs = scrape_jobs(
-                        site_name=websites,
+                        site_name=search_websites,
                         search_term= search_term_str,
-                        location=location,
+                        location=location.city,
                         google_search_term=google_search_str,
                         results_wanted=final_limit,
-                        hours_old=AppConfig.LAST_MONTH_TIME
+                        hours_old=AppConfig.LAST_MONTH_TIME,
+                        country_indeed=location.country,
                     )
                 except Exception as e:
                     logging.error(f"Error searching for jobs: {str(e)}")
                     continue
+                print(">>>", len(jobs))
                 for i in range(len(jobs)):
                     if jobs["id"][i] in seen_jobs:
                             continue
-                    if not self.check_location_similarity(str(jobs["location"][i]), location):
+                    if not self.check_location_similarity(str(jobs["location"][i]), location.city):
                         continue
                     seen_jobs.add(jobs["id"][i])
+                
                     all_jobs.append({
                         "title": jobs["title"][i],
                         "company": jobs["company"][i],
@@ -98,7 +122,7 @@ class JobSpySearchTool:
                         "job_description": jobs["description"][i] if jobs["description"][i] else "No description available.",
                         "job_posting_link": jobs["job_url"][i],
                         "job_id": jobs["id"][i],
-                        "site": jobs["site"][i],
+                        "site": self.fix_website_name(jobs["site"][i], jobs["job_url"][i], websites),
                     })
                 end_time = time.time()
                 logging.info(f"JOBSPY (end - start): {end_time - start_time} seconds")

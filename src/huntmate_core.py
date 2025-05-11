@@ -141,12 +141,13 @@ class HuntMate:
             return state["user_input"]
         else:
             try: 
-                job_id = result.description.split("https://www.linkedin.com/jobs/view/")[1].split(")")[0]
-                complete_info = self.linkedin_tool.get_job_info(job_id)
-                if complete_info:
-                    return complete_info
-                else: 
-                    return result.description
+                # job_id = result.description.split("https://www.linkedin.com/jobs/view/")[1].split(")")[0]
+                # complete_info = self.linkedin_tool.get_job_info(job_id)
+                # if complete_info:
+                #     return complete_info
+                # else: 
+                #     return result.description
+                return result.description
             except:
                 return state["user_input"]
 
@@ -236,20 +237,21 @@ class HuntMate:
         start_time = time.time()
         score_answer = {"1":[], "2":[],"3": [], "4": [], "5": []}
         
+
+        
         linkedin_jobs, jobspy_jobs = [], []
 
         if state["selected_websites"] == []:
-            state["selected_websites"] = ["Indeed", "LinkedIn", "Google", "Glassdoor"]
+            state["selected_websites"] = ["indeed", "google", "glassdoor", "linkedin"]
         
-        if "LinkedIn" in state["selected_websites"]:
-            linkedin_jobs = self.linkedin_tool.job_search(state["job_search_params"])
-            if len(state["selected_websites"]) > 1:
-                state["selected_websites"].remove("LinkedIn")
-
-        if len(state["selected_websites"]) > 0:
-            jobspy_jobs = self.jobspy_tool.job_search(state["job_search_params"], state["selected_websites"])
+        # if "LinkedIn" in state["selected_websites"]:
+            # linkedin_jobs = self.linkedin_tool.job_search(state["job_search_params"])
+            # if len(state["selected_websites"]) > 1:
+            #     state["selected_websites"].remove("LinkedIn")
         
-        found_jobs = self.remove_duplicate_jobs(linkedin_jobs, jobspy_jobs)
+        jobspy_jobs = self.jobspy_tool.job_search(state["job_search_params"], state["selected_websites"])
+        found_jobs = jobspy_jobs
+        # found_jobs = self.remove_duplicate_jobs(linkedin_jobs, jobspy_jobs)
 
         found_jobs = [job for job in found_jobs if self.basic_keyword_match(job, state["job_search_params"].job_keywords)]
         mid_time = time.time()
