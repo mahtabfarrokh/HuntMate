@@ -1,6 +1,6 @@
 from typing import List
 
-from models import JobSearchParams
+from src.models import JobSearchParams
 
 def fill_job_preferences(user_input) -> List[dict]: 
     messages = [
@@ -8,17 +8,17 @@ def fill_job_preferences(user_input) -> List[dict]:
           "content": """
                 Think step by step and populate the JSON job search parameters based on the user's input. Leave fields empty if not provided.
 
-                ### Additional Considerations:
+                ### Feature Explanations:
 
                 - **Locations Handling:**
                 - If the user provides **only a country name**, include the country name along with its top 5 major cities.  
-                    - Example: `"United States"` → `["United States", "New York", "Los Angeles", "Chicago", "Houston", "San Francisco"]`
-                    - Example: `"Canada"` → `["Canada", "Toronto", "Montreal", "Vancouver", "Calgary", "Ottawa"]`
+                    - Example: `"United States"` → locations = [Location(city="New York", country="United States"), Location(city="Los Angeles", country="United States"), Location(city="Chicago", country="United States"), Location(city="Houston", country="United States"), Location(city="San Francisco", country="United States")]
+                    - Example: `"Canada"` → locations = [Location(city="Toronto", country="Canada"), Location(city="Montreal", country="Canada"), Location(city="Vancouver", country="Canada"), Location(city="Calgary", country="Canada"), Location(city="Ottawa", country="Canada")]
                 - If the user provides **a city name alone**, do **not** add additional cities.  
-                    - Example: `"Vancouver"` → `["Vancouver"]`
+                    - Example: `"Vancouver"` → locations = [Location(city="Vancouver", country="Canada")]
                 - If the user provides **both a city and a country**, keep them as-is without adding extra cities.  
-                    - Example: `"Vancouver, Canada"` → `["Vancouver", "Canada"]`
-                    - Example: `"Los Angeles, Canada"` → `["Los Angeles", "Canada"]`
+                    - Example: `"Vancouver, Canada"` → locations = [Location(city="Vancouver", country="Canada")]
+                    - Example: `"Los Angeles, Canada"` → locations = [Location(city="Los Angeles", country="Canada")]
 
                 - **Experience Level Handling:**  Pay attention to the following mappings:
                         - INTERNSHIP = "1"
@@ -30,30 +30,31 @@ def fill_job_preferences(user_input) -> List[dict]:
 
                 - **Job Keywords Handling:**  
                     - Include the main **essential keywords** for the job search in `job_keywords`.  
+                    - If the user uses abbreviations such as "AI," "ML," or "DS," expand them to their full forms.
+                    - Example: "AI" → "Artificial Intelligence", "ML" → "Machine Learning", "DS" → "Data Science"
+                 
 
                 - **Extra Preferences:**  
                     - Any additional details provided by the user should be stored in the `extra_preferences` field.
-                    - Do not include non important details such as "User is looking for a job.", we already know that!
-                    
-                    
+                    - IMPORTANT: Do NOT include generic or obvious information (e.g., "User is looking for a job.") — we already know that. If there's nothing specific to add, leave the `extra_preferences` field blank.
+
+                      
                 ### Example:
-                # User Input: I'm looking for a remote job in data science in the United States.
-                # 
-                # JSON Output:
-                # {
-                #    "job_keywords": ["data science"],
-                #   "locations": ["United States", "New York", "Los Angeles", "Chicago", "Houston", "San Francisco"],
-                #   "work_mode": ["2"],},
+                User Input: I'm looking for a remote job in data science in the United States.
+                JSON Output:
+                {
+                   "job_keywords": ["Data Science"],
+                   "locations": [Location(city="New York", country="United States"), Location(city="Los Angeles", country="United States"), Location(city="Chicago", country="United States"), Location(city="Houston", country="United States"), Location(city="San Francisco", country="United States")],
+                   "work_mode": ["2"],},
 
 
                 Also make sure for the extra preferences, the user's input is stored in the `extra_preferences` field: 
                 ### Example:
-                # User Input: I'm looking for a AI related job in the education domain.
-                # 
-                # JSON Output:
-                # {
-                #    "job_keywords": ["AI", "Artificial Intelligence", "Machine Learning", "Deep Learning"],
-                #    "extra_preferences": "Looking for a job in the education domain."},
+                User Input: I'm looking for a AI related job in the education domain. 
+                JSON Output:
+                {
+                    "job_keywords": ["Artificial Intelligence"],
+                    "extra_preferences": "Searching for a job in the education domain of AI."},
                 """},
 
 
@@ -74,9 +75,9 @@ def check_job_match(user_input: JobSearchParams, title:str, company:str, job_des
 
     messages = [
         {"role": "system",  "content": """  
-                Fill the provided pydantic schema with the user's input and the job description.
+                Fill the provided Pydantic schema with the user's input and the job description.
                 For the `match_score`, give a score based on the following ruberic: 
-                - 5 (Perfect Match): The job aligns with all essential preferences: at least one keyword, experience level. Extra preferences (if provided) are also met.
+                - 5 (Perfect Match): The job aligns with all essential preferences: at least one keyword, one of the experience level. Extra preferences (if provided) are also met.
                 - 4 (Strong Match): The job matches most preferences including at least one keyword (at least 4/5 categories). Extra preferences are partially met or moderately aligned.
                 - 3 (Moderate Match): The job meets at least 3/5 essential categories. It may have minor misalignment (e.g. experience level mismatch). Extra preferences are partially considered.
                 - 2 (Weak Match): The job meets only 2/5 essential categories. It may have significant mismatches, and extra preferences are not met.
@@ -88,7 +89,7 @@ def check_job_match(user_input: JobSearchParams, title:str, company:str, job_des
                 Note: It's perfectly fine if the job title doesn't exactly match the keyword, as long as the keyword is mentioned in the job description.
                 For example: if the keyword is "machine learning" but the job title is "Data Scientist" and the description includes machine learning tasks, that's still a valid match.
 
-                Provide a brief justification for the score under `reasonning`.
+                Provide a brief justification for the score under `reasoning`.
                 """},
 
         {"role": "user", "content": f"""
@@ -109,7 +110,7 @@ def check_job_match(user_input: JobSearchParams, title:str, company:str, job_des
 def router_prompt(user_input:str) -> List[dict]:
     messages = [
         {"role": "system", "content": """
-                Think step by step and route the user's input to the correct function. 
+                Think carefully and route the user's input to the correct function. 
                 For example, if the user says "job search," route it to the `job_search` function.
 
                 Also extract and record any critical new information that should be persisted in chat history — such as user general preferences/constraints/information. 
@@ -129,6 +130,7 @@ def router_prompt(user_input:str) -> List[dict]:
     ]
     return messages
 
+ 
 def craft_coverletter_prompt(user_input: str, memory_info: List[str], job_description:str) -> List[dict]:
     """Prompt for generating a cover letter based on user input and job description."""
     
@@ -164,7 +166,7 @@ def find_job_user_mentioned_prompt(user_input: str, chat_history: List[str]) -> 
     messages = [
         {"role": "system", "content": """
                 Think step by step and check if the the job in user input can be found in the chat history.
-                If the job is found in the chat history, return all the job details.
+                If the job is found in the chat history, return all the job details. Include the job title, company name, job description, and the job link.
                 If the job is not found in the chat history, return "No job matched."
 
                 Note: in rare cases you might find mutiple job matches in the chat history, in that case starting from the top of the history return only the first match that you find. 
@@ -176,3 +178,65 @@ def find_job_user_mentioned_prompt(user_input: str, chat_history: List[str]) -> 
     ]
     return messages
     
+
+def unsupported_task_prompt(user_input: str, chat_history: List[str]) -> List[dict]:
+    chat_history = chat_history[-10:][::-1]
+    messages = [
+        {"role": "system", "content": """
+                You are a helpful assistant that can help the user with their job search.
+                If user is greeting you, just say greeting back and ask how can you help them today.
+                If user is asking about a topic not related to job search or crafting email or cover letter, for example asking abour the weather, just say you are not able to help with that, and point them to the right topics such as job search, crafting email, or cover letter.
+                If user is asking about a topic related to job search, crafting email, or cover letter, just ask follow up questions to get more information.
+                You will also be provided with the recent chat history, so you can use it to answer the user's question.
+
+                ### Examples: 
+                Example: 
+                User: What is the weather in Vancouver?
+                You: I'm sorry, I can't help with that. I'm here to help you with your job search, crafting email, or cover letter.
+
+                Example:
+                User: I want to apply for a job at Google.
+                You: Sure, I can help you with that. What is the job title you are applying for?
+
+                Example:
+                User:  Hi there! 
+                You: Hello! How can I help you today? 
+         
+                Example:
+                User: I don't know how to interact with you. 
+                You: I'm here to help you with your job search, crafting email, or cover letter. You can ask me anything about it. 
+
+                """},
+         {"role": "user", "content": f"""
+                # User Input: {user_input}
+                # Recent Chat History: {str(chat_history)}
+                """ }
+    ]
+    return messages
+
+
+ 
+def craft_email_prompt(user_input: str, memory_info: List[str], job_description:str) -> List[dict]:
+    """Prompt for generating a cover letter based on user input and job description."""
+    
+    recent_memory = ", ".join(memory_info[-10:]) if memory_info else "None"
+    
+    messages = [
+        {"role": "system", "content": """
+                Craft a personalized email based on the job description, user input and preferences, and the recent chat history. 
+                Keep the tone of the email professional and friendly. Unless user asks for a more casual tone.
+         
+                ### Additional Considerations:
+                - **Job Description:** Highlight relevant skills and experiences that match the job requirements.
+                - **Length:** Keep the email concise, ideally under 100 words. Unless user asks for more details.
+                """},
+        {"role": "user", "content": f"""
+                # User Preference: 
+                - User Input: {user_input}
+                - General Information About the User in Memory: {str(recent_memory)}
+                ----------------------------------------------
+                # About the job:
+                - Job Description: {job_description}
+                """ }
+    ]
+    return messages

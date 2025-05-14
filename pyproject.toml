@@ -3,18 +3,20 @@ name = "huntmate"
 version = "0.1.0"
 description = "HuntMate is a multi-agent chatbot for job search related tasks."
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.11"
 dependencies = [
-    "beautifulsoup4>=4.13.3",
+    "beautifulsoup4>=4.13.4",
     "ipython>=9.1.0",
     "langchain>=0.3.23",
-    "langgraph>=0.3.29",
-    "litellm>=1.65.8",
+    "langgraph>=0.3.31",
+    "levenshtein>=0.27.1",
+    "litellm>=1.66.3",
     "lxml>=5.3.2",
     "msedge-selenium-tools>=3.141.4",
-    "openai>=1.73.0",
+    "openai>=1.75.0",
     "pandas>=2.2.3",
     "pydantic>=2.11.3",
+    "python-jobspy>=1.1.80",
     "streamlit>=1.44.1",
     "watchdog>=6.0.0",
 ]

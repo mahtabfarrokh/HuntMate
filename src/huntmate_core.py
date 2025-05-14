@@ -6,16 +6,20 @@ from typing import List, Dict, Any
 import streamlit as st
 import pandas as pd
 import configparser
+import Levenshtein
 import logging
 import shutil
+import time
 import json
 import os
 
 
-from tools.linkedin_search import LinkedinSearchTool, JobSearchParams
-from prompts import fill_job_preferences, check_job_match, router_prompt, craft_coverletter_prompt, find_job_user_mentioned_prompt
-from models import JobMatch, Route, State, JobSearchParams, JobUserMention
-from settings import AppConfig
+from src.settings import AppConfig
+from src.tools.jobspy_search import JobSpySearchTool
+# from src.tools.linkedin_search import LinkedinSearchTool
+from src.models import JobMatch, Route, State, JobSearchParams, JobUserMention
+from src.prompts import *
+
 
 
 logger = logging.getLogger(__name__)
@@ -30,7 +34,8 @@ class HuntMate:
         config.read('./api.cfg')
         os.environ["OPENAI_API_KEY"] = config['openai']['api_key']
         self.model_name = model_name
-        self.linkedin_tool = LinkedinSearchTool()
+        # self.linkedin_tool = LinkedinSearchTool()
+        self.jobspy_tool = JobSpySearchTool()
         self.create_workflow()
         
         
@@ -43,10 +48,12 @@ class HuntMate:
 
     def clean_cache(self) -> None:
         """Clean the cache before running the application"""
-        if os.path.exists("./tools/__pycache__"):
-            shutil.rmtree("./tools/__pycache__")
-        if os.path.exists("./my_linkedin_api/__pycache__"):
-            shutil.rmtree("./my_linkedin_api/__pycache__")
+        if os.path.exists("./src/tools/__pycache__"):
+            shutil.rmtree("./src/tools/__pycache__")
+        if os.path.exists("./src/my_linkedin_api/__pycache__"):
+            shutil.rmtree("./src/my_linkedin_api/__pycache__")
+        if os.path.exists("./src/__pycache__"):
+            shutil.rmtree("./src/__pycache__")
         if os.path.exists("db"):
             # RESET the memory
             for file in os.listdir("db"):
@@ -107,8 +114,15 @@ class HuntMate:
         return route_map.get(state["route_decision"], "unsupported_task")
         
     def craft_email(self, state: State) -> Dict[str, Any]:
-        # TODO: Attach this to a llm call 
-        return {"final_response": "Email crafted"}
+        job_description = self.find_exact_job(state)
+        memory_personal = self.load_personal_memory(state)
+        response = completion(
+            model=self.model_name,
+            messages=craft_email_prompt(state["user_input"], memory_personal, job_description),
+            response_format=None
+        )
+        cover_letter = response.choices[0].message.content
+        return {"final_response": cover_letter}
     
     def find_exact_job(self, state: State) -> str:
         """Find the exact job the user is selecting based on the user's input and history"""
@@ -127,12 +141,13 @@ class HuntMate:
             return state["user_input"]
         else:
             try: 
-                job_id = result.description.split("https://www.linkedin.com/jobs/view/")[1].split(")")[0]
-                complete_info = self.linkedin_tool.get_job_info(job_id)
-                if complete_info:
-                    return complete_info
-                else: 
-                    return result.description
+                # job_id = result.description.split("https://www.linkedin.com/jobs/view/")[1].split(")")[0]
+                # complete_info = self.linkedin_tool.get_job_info(job_id)
+                # if complete_info:
+                #     return complete_info
+                # else: 
+                #     return result.description
+                return result.description
             except:
                 return state["user_input"]
 
@@ -183,28 +198,67 @@ class HuntMate:
 
     def job_details_output(self, job: dict, job_match: JobMatch) -> str:
         """Generate the output for the job details"""
-        # TODO: This should be moved to app.py
-        return f"""### :briefcase: {job['title']}  \n ###### **Company:** {job['company']}  \n ###### **Match Score:** {job_match.match_score}  \n ###### **Job Summary:** {job_match.job_summary}  \n ###### **Job Reasoning:** {job_match.reasonning}  \n ###### **[🔗 Job Link]({job['job_posting_link']})**  \n---------------------------------\n"""
-    
+
+        source_class = str(job["site"]).capitalize()  # default class if unknown
+        return f""" 💼 {job['title']} [🌀 {source_class}] \n ###### **Company:** {job['company']}  \n ###### **Match Score:** {job_match.match_score}  \n ###### **Job Summary:** {job_match.job_summary}  \n ###### **Job Reasoning:** {job_match.reasonning}  \n ###### **[🔗 Link to the job posting]({job['job_posting_link']})**  \n---------------------------------\n"""
+     
     def basic_keyword_match(self, job: dict, keywords: List[str]) -> bool:
         """Check if the job title or description contains any of the keywords"""
+        keys = [word.lower() for keyword in keywords for word in keyword.split()]
         title = job["title"].lower()
         description = job["job_description"].lower()
-        for keyword in keywords:
+        for keyword in keys:
             if keyword.lower() in title or keyword.lower() in description:
                 return True
         return False
 
+    def remove_duplicate_jobs(self, linkedin_jobs: List[Dict[str, str]], jobspy_jobs: List[Dict[str, str]]) -> List[Dict[str, str]]:
+        """ Remove duplicate jobs based on company and title edit distance """
+
+        def is_similar(str1: str, str2: str, threshold: float = 0.6) -> bool:
+            """Check if two strings are similar based on a threshold using Levenshtein ratio."""
+            return Levenshtein.ratio(str1.lower(), str2.lower()) >= threshold
+        
+        filtered_jobspy = []
+        for jobspy_job in jobspy_jobs:
+            duplicate = False
+            for linkedin_job in linkedin_jobs:
+                if is_similar(linkedin_job["title"], jobspy_job["title"]) and is_similar(linkedin_job["company"], jobspy_job["company"]):
+                    duplicate = True
+                    break
+            if not duplicate:
+                filtered_jobspy.append(jobspy_job)
+
+        # Combine filtered jobspy jobs with linkedin jobs
+        return filtered_jobspy + linkedin_jobs
+
     def find_related_jobs(self, state: State) -> Dict[str, Any]:
         """Find related jobs based on the user's input"""
         counter, i = 1, 0
+        start_time = time.time()
         score_answer = {"1":[], "2":[],"3": [], "4": [], "5": []}
         
-        found_jobs = self.linkedin_tool.job_search(state["job_search_params"])
-        
-        found_jobs = [job for job in found_jobs if self.basic_keyword_match(job, state["job_search_params"].job_keywords)]
 
+        
+        linkedin_jobs, jobspy_jobs = [], []
+
+        if state["selected_websites"] == []:
+            state["selected_websites"] = ["indeed", "google", "glassdoor", "linkedin"]
+        
+        # if "LinkedIn" in state["selected_websites"]:
+            # linkedin_jobs = self.linkedin_tool.job_search(state["job_search_params"])
+            # if len(state["selected_websites"]) > 1:
+            #     state["selected_websites"].remove("LinkedIn")
+        
+        jobspy_jobs = self.jobspy_tool.job_search(state["job_search_params"], state["selected_websites"])
+        found_jobs = jobspy_jobs
+        # found_jobs = self.remove_duplicate_jobs(linkedin_jobs, jobspy_jobs)
+
+        found_jobs = [job for job in found_jobs if self.basic_keyword_match(job, state["job_search_params"].job_keywords)]
+        mid_time = time.time()
+        logger.info("Time taken for job search (mid - start): %s", mid_time - start_time)
         logger.info("Found jobs: %s", len(found_jobs))
+        
         batch_size = AppConfig.JOB_MATCH_BATCH_SIZE
         while counter < state["job_search_params"].limit + 1 and  i < len(found_jobs): 
             logger.info("Processing job: %s", i)
@@ -237,13 +291,23 @@ class HuntMate:
                 counter += 1
                 if counter > state["job_search_params"].limit + AppConfig.EXTRA_JOBS_TO_SEARCH_LOWER:
                     return {"final_response": answer}
-                
+        end_time = time.time()
+        logger.info("Main function time (end - start): %s", end_time - start_time)
+        logger.info("Main function time (end - mid): %s", end_time - mid_time)
         return {"final_response": answer}
 
     def unsupported_task(self, state: State) -> Dict[str, Any]:
         """Return a response for an unsupported task"""
-        return {"final_response": "I'm sorry, I can't help with that. If you believe Hunt Mate should be able to help with this, please let us know by raising an issue in our Git repo."}
-    
+        chat_history = []
+        if os.path.exists("db/chat_history.csv"):
+            chat_history = pd.read_csv("db/chat_history.csv")["chat_history"].tolist()
+        response = completion(
+            model=self.model_name,
+            messages=unsupported_task_prompt(state["user_input"], chat_history),
+            response_format=None
+        )
+        return {"final_response": response.choices[0].message.content}
+        
     def update_memory(self, state: State) -> None:
         """Save memory and chat history to CSV files."""
         user_info_memory_path = "db/user_info_memory.csv"
@@ -319,9 +383,12 @@ class HuntMate:
         # self.save_diagram("./images/diagram.png")
         return 
 
-    def run(self, user_input: str, skip_router: bool = True, filled_job_form: bool = False) -> str:
+    def run(self, user_input: str, skip_router: bool = True, filled_job_form: bool = False, websites: List[str] = []) -> str:
         """Run the HuntMate to generate the response"""
-        response = self.workflow.invoke({"user_input": user_input, "skip_router": skip_router, "filled_job_form": filled_job_form})["final_response"]
+        response = self.workflow.invoke({"user_input": user_input, 
+                                         "skip_router": skip_router, 
+                                         "filled_job_form": filled_job_form, 
+                                         "selected_websites": websites})["final_response"]
         return response
     
 

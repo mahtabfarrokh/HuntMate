@@ -7,7 +7,6 @@ class AppConfig:
     EXTRA_JOBS_TO_SEARCH_LOWER = 5  # Extra jobs to add to the search so that you can find the best match
     EXTRA_JOBS_TO_SEARCH_UPPER = 20 # Extra jobs to add to the search so that you can find the best match
 
-    LINKEDIN_BATCH_PROCESS = 8      # Number of jobs to process in parallel
 
     LAST_MONTH_TIME = 24*60*60*30   # Jobs listed in the last 30 days
 
@@ -19,6 +18,6 @@ class AppConfig:
     COLUMN_SETUP = [1, 0.5,  5]     # Column setup for the UI app
 
     # HuntMate core parameters:
-    JOB_MATCH_BATCH_SIZE = 4        # Number of jobs to process in parallel in the LLM Call
+    JOB_MATCH_BATCH_SIZE = 64        # Number of jobs to process in parallel in the LLM Call
 
-
+    GLASSDOOR_HEADER_UPDATE = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"
