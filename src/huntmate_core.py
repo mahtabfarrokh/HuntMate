@@ -16,7 +16,7 @@ import os
 
 from src.settings import AppConfig
 from src.tools.jobspy_search import JobSpySearchTool
-from src.tools.linkedin_search import LinkedinSearchTool
+# from src.tools.linkedin_search import LinkedinSearchTool
 from src.models import JobMatch, Route, State, JobSearchParams, JobUserMention
 from src.prompts import *
 
@@ -34,7 +34,7 @@ class HuntMate:
         config.read('./api.cfg')
         os.environ["OPENAI_API_KEY"] = config['openai']['api_key']
         self.model_name = model_name
-        self.linkedin_tool = LinkedinSearchTool()
+        # self.linkedin_tool = LinkedinSearchTool()
         self.jobspy_tool = JobSpySearchTool()
         self.create_workflow()
         
@@ -204,9 +204,10 @@ class HuntMate:
      
     def basic_keyword_match(self, job: dict, keywords: List[str]) -> bool:
         """Check if the job title or description contains any of the keywords"""
+        keys = [word.lower() for keyword in keywords for word in keyword.split()]
         title = job["title"].lower()
         description = job["job_description"].lower()
-        for keyword in keywords:
+        for keyword in keys:
             if keyword.lower() in title or keyword.lower() in description:
                 return True
         return False

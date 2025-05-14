@@ -28,7 +28,7 @@ class JobSpySearchTool:
     def remove_duplicate_jobs(self, all_jobs: List[Dict[str, str]]) -> List[Dict[str, str]]:
         """ Remove duplicate jobs based on company and title edit distance """
 
-        def is_similar(str1: str, str2: str, threshold: float = 0.6) -> bool:
+        def is_similar(str1: str, str2: str, threshold: float = 0.5) -> bool:
             """Check if two strings are similar based on a threshold using Levenshtein ratio."""
             if type(str1) != str or type(str2) != str:
                 return True
@@ -56,7 +56,7 @@ class JobSpySearchTool:
             return True
         location1 = location1.lower()
         location2 = location2.lower()
-        return Levenshtein.ratio(location1, location2) > 0.3
+        return Levenshtein.ratio(location1, location2) > 0.1
     
     def fix_website_name(self, website: str, url: str, website_selected: List[str]) -> str:
         """ Fix the website name if it is google based on the url """
@@ -71,7 +71,7 @@ class JobSpySearchTool:
         """ Search for jobs using jobspy """
         if websites is None:
             return []  
-       
+        websites = [w.lower() for w in websites]
         final_limit = search_params.limit + AppConfig.EXTRA_JOBS_TO_SEARCH_LOWER
         if len(search_params.job_keywords) == 1 and len(search_params.locations) == 1:
             final_limit = search_params.limit + AppConfig.EXTRA_JOBS_TO_SEARCH_UPPER # Add extra jobs to account for duplicates or wrong matches
@@ -92,7 +92,7 @@ class JobSpySearchTool:
                 google_search_str = ""
                 search_term_str = '"' + keyword + '"'
                 if "google" in websites:
-                    google_search_str = search_term_str + ' in ' + location
+                    google_search_str = search_term_str + ' in ' + location.city
                 try:
                     jobs = scrape_jobs(
                         site_name=search_websites,
